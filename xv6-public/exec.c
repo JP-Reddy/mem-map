@@ -11,7 +11,7 @@ int
 exec(char *path, char **argv)
 {
   char *s, *last;
-  int i, off;
+  int i, off, perm;
   uint argc, sz, sp, ustack[3+MAXARG+1];
   struct elfhdr elf;
   struct inode *ip;
@@ -53,7 +53,11 @@ exec(char *path, char **argv)
       goto bad;
     if(ph.vaddr % PGSIZE != 0)
       goto bad;
-    if(loaduvm(pgdir, (char*)ph.vaddr, ip, ph.off, ph.filesz) < 0)
+
+    // Indicate if the segment is writable (segments are always readable)
+    perm = ph.flags & ELF_PROG_FLAG_WRITE ? PTE_W : 0;
+
+    if(loaduvm(pgdir, (char*)ph.vaddr, ip, ph.off, ph.filesz, perm) < 0)
       goto bad;
   }
   iunlockput(ip);
