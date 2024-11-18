@@ -10,6 +10,9 @@
 extern char data[];  // defined by kernel.ld
 pde_t *kpgdir;  // for use in scheduler()
 
+// TODO SRINAG: what's the correct size?
+char page_ref[(KERNBASE / PGSIZE) * 2 + 1];
+
 // Set up CPU's kernel segment descriptors.
 // Run once on entry on each CPU.
 void
@@ -27,6 +30,12 @@ seginit(void)
   c->gdt[SEG_UCODE] = SEG(STA_X|STA_R, 0, 0xffffffff, DPL_USER);
   c->gdt[SEG_UDATA] = SEG(STA_W, 0, 0xffffffff, DPL_USER);
   lgdt(c->gdt, sizeof(c->gdt));
+
+  // TODO SRINAG: what's the correct place to init?
+  for (int i = 0; i < sizeof(page_ref); ++i)
+  {
+    page_ref[i] = 0;
+  }
 }
 
 // Return the address of the PTE in page table pgdir
@@ -71,6 +80,27 @@ mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
     if(*pte & PTE_P)
       panic("remap");
     *pte = pa | perm | PTE_P;
+
+    // Increase the reference count for the phy page if a user-page is being
+    // mapped
+    if ((uint)a < KERNBASE)
+    {
+      int frame = pa / PGSIZE;
+
+      if (frame >= sizeof(page_ref))
+      {
+        panic("mappages: ref oob");
+      }
+      else if (page_ref[frame] < 0)
+      {
+        panic("mappage: ref corrupt");
+      }
+      else
+      {
+        page_ref[frame]++;
+      }
+    }
+
     if(a == last)
       break;
     a += PGSIZE;
@@ -278,8 +308,35 @@ deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
       pa = PTE_ADDR(*pte);
       if(pa == 0)
         panic("kfree");
-      char *v = P2V(pa);
-      kfree(v);
+
+      int frame = pa / PGSIZE;
+
+      if (frame >= sizeof(page_ref))
+      {
+        panic("deallocuvm: ref oob");
+      }
+
+      if (a < KERNBASE)
+      {
+        if (page_ref[frame] <= 0)
+        {
+          panic("deallocuvm: ref multiple deref");
+        }
+
+        // If the page is no longer referred to in any page-table, deallocate
+        // it
+        if(--page_ref[frame] == 0)
+        {
+          char *v = P2V(pa);
+          kfree(v);
+        }
+      }
+      else
+      {
+        char *v = P2V(pa);
+        kfree(v);
+      }
+
       *pte = 0;
     }
   }
@@ -318,6 +375,147 @@ clearpteu(pde_t *pgdir, char *uva)
   *pte &= ~PTE_U;
 }
 
+#ifdef COW
+
+int
+handle_pgflt_cow(pte_t *pte)
+{
+  uint pa = PTE_ADDR(*pte);
+  uint flags = PTE_FLAGS(*pte);
+  int frame = pa / PGSIZE;
+
+  // If there are other processes referring to this phy page, create a copy of
+  // the phy page for the current process and point the virtual address to this
+  // copy instead
+  if (page_ref[frame] > 1)
+  {
+    // Allocate new page and copy data from original phy page
+    char *mem;
+
+    if((mem = kalloc()) == 0)
+    {
+      return -1;
+    }
+
+    memmove(mem, (char*)P2V(pa), PGSIZE);
+
+    uint new_pa = V2P(mem);
+    uint new_frame = new_pa / PGSIZE;
+
+    // Restore the write flag for the page copy
+    flags &= ~PTE_COWRO;
+    flags |= PTE_W;
+    *pte = new_pa | flags;
+
+    // Increment the reference counter for the page copy
+    ++page_ref[new_frame];
+
+    // Decrement the reference counter for the original page
+    --page_ref[frame];
+  }
+  // If there are no other processes referring to this phy page, simply restore
+  // write access to it's sole virtual address mapping
+  else if (page_ref[frame] == 1)
+  {
+    flags &= ~PTE_COWRO;
+    flags |= PTE_W;
+    *pte = pa | flags;
+  }
+  else
+  {
+    panic("handle_pgflt: refcount");
+  }
+
+  return 0;
+}
+
+#endif
+
+int
+handle_pgflt(pde_t *pgdir, char *uva)
+{
+  // Reset address to the start of the VA page
+  uva = (char*)PGROUNDDOWN((uint)uva);
+
+  pte_t *pte = walkpgdir(pgdir, uva, 0);
+
+  // Page really isn't mapped
+  if(pte == 0)
+  {
+    // TODO SRINAG: after all debugging remove panic
+    panic("handle_pgflt: pgflt");
+    return -1;
+  }
+
+#ifdef COW
+
+  uint flags = PTE_FLAGS(*pte);
+
+  // Trigger COW handler if the page was marked read-only by COW
+  if (flags & PTE_COWRO)
+  {
+    int status = handle_pgflt_cow(pte);
+
+    // The page-table has been changed, flush the TLB.
+    lcr3(V2P(pgdir));
+    return status;
+  }
+
+#endif
+
+  // Trigger lazy allocation handler if...
+
+  return -1;
+}
+
+#ifdef COW
+
+// Given a parent process's page table, create a copy
+// of it for a child.
+pde_t*
+copyuvm(pde_t *pgdir, uint sz)
+{
+  pde_t *d;
+  pte_t *pte;
+  uint pa, i, flags;
+
+  if((d = setupkvm()) == 0)
+    return 0;
+  for(i = 0; i < sz; i += PGSIZE){
+    if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
+      panic("copyuvm: pte should exist");
+    if(!(*pte & PTE_P))
+      panic("copyuvm: page not present");
+    pa = PTE_ADDR(*pte);
+    flags = PTE_FLAGS(*pte);
+
+    // If the page is writeable, mark it read-only and install the COW trigger
+    if (flags & PTE_W)
+    {
+      flags |= PTE_COWRO;
+      flags &= ~PTE_W;
+      *pte = pa | flags;
+    }
+
+    // Map the virtual address to the same physical address as the source table
+    if(mappages(d, (void*)i, PGSIZE, pa, flags) < 0) {
+      goto bad;
+    }
+  }
+
+  // The source page table could be modified, flush TLB
+  lcr3(V2P(pgdir));
+  return d;
+
+bad:
+  // The source page table could be modified, flush TLB
+  lcr3(V2P(pgdir));
+  freevm(d);
+  return 0;
+}
+
+#else
+
 // Given a parent process's page table, create a copy
 // of it for a child.
 pde_t*
@@ -351,6 +549,8 @@ bad:
   freevm(d);
   return 0;
 }
+
+#endif
 
 //PAGEBREAK!
 // Map user virtual address to kernel address.
