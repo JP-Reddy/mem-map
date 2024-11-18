@@ -78,18 +78,25 @@ trap(struct trapframe *tf)
     lapiceoi();
     break;
 
+#ifdef COW
+
   case T_PGFLT:
-    char* uva = (char*)rcr2();
-
-    // Trigger the page-fault handler
-    if(handle_pgflt(myproc()->pgdir, uva) < 0)
     {
-      cprintf("Segmentation Fault\n");
-      myproc()->killed = 1;
+      char* uva = (char*)rcr2();
+      int status;
+      // Trigger the page-fault handler
+      if((status = handle_pgflt(myproc()->pgdir, uva)) < 0)
+      {
+        cprintf("Segmentation Fault\n");
+        cprintf("Segmentation Fault %d\n", status);
+        myproc()->killed = 1;
+      }
     }
-
+    
     // TODO SRINAG: should we call lapiceoi()?
     break;
+
+#endif
 
   //PAGEBREAK: 13
   default:

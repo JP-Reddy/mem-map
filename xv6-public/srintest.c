@@ -8,12 +8,16 @@ char *str = "You can't change a character!";
 
 void test_task3()
 {
+    printf(1, "%s start\n", __func__);
+    printf(1, "Expect segfault\n");
     str[1] = 'O';
     printf(1, "%s\n", str);
+    printf(1, "%s end\n", __func__);
 }
 
 void test_task4_1()
 {
+    printf(1, "%s start\n", __func__);
 
 #ifdef COW
     int i = 10;
@@ -38,11 +42,17 @@ void test_task4_1()
     {
         wait();
     }
+
+    printf(1, "%s end\n", __func__);
 }
 
 void test_task4_2()
 {
-    int big_array[PGSIZE * 4];
+    printf(1, "%s start\n", __func__);
+
+    const int array_size = PGSIZE * 1;
+    int big_array[array_size];
+    // int big_array[PGSIZE * 1];
 
 #ifdef COW
     int v = 10;
@@ -50,38 +60,41 @@ void test_task4_2()
     int v = 20;
 #endif
 
-    for (int i = 0; i < sizeof(big_array) / sizeof(int); ++i)
+    big_array[1] = v;
+
+    for (int i = 0; i < array_size; ++i)
     {
-        big_array[i] = i;
+        printf(1, "%d\n", i);
+        big_array[i] = i * v;
     }
 
-    int pid1 = fork();
-    int pid2 = fork();
-    int res;
+    // int pid1 = fork();
+    // int pid2 = fork();
+    int res = 1;//pid1;
 
-    if (pid1 != 0 && pid2 != 0)
-    {
-        res = 1;
-    }
-    else if (pid1 == 0 && pid2 == 0)
-    {
-        res = 4;
-    }
-    else if (pid1 == 0)
-    {
-        res = 2;
-    }
-    else
-    {
-        res = 3;
-    }
+    // if (pid1 != 0 && pid2 != 0)
+    // {
+    //     res = 1;
+    // }
+    // else if (pid1 == 0 && pid2 == 0)
+    // {
+    //     res = 4;
+    // }
+    // else if (pid1 == 0)
+    // {
+    //     res = 2;
+    // }
+    // else
+    // {
+    //     res = 3;
+    // }
 
-    for (int i = 0; i < sizeof(big_array) / sizeof(int); ++i)
-    {
-        big_array[i] = v;
-    }
+    // for (int i = 0; i < array_size; ++i)
+    // {
+    //     big_array[i] = v;
+    // }
 
-    if (big_array[0] == 10)
+    if (big_array[1] == 10)
     {
         printf(1, "P: %d, COW enabled\n", res);
     }
@@ -90,14 +103,28 @@ void test_task4_2()
         printf(1, "P: %d, COW disabled\n", res);
     }
 
-    if (res == 1 || res == 2)
+    // if (res == 1 || res == 2)
+    if (res > 0)
     {
-        wait();
+        // wait();
     }
+
+    printf(1, "%s end\n", __func__);
 }
 
 int main() {
-    test_task4_2();
+    void (*test[])() = 
+    {
+        // test_task4_1,
+        test_task4_2,
+        // test_task3,
+    };
+
+    for (int i = 0; i < sizeof(test) / sizeof(test[0]); ++i)
+    {
+        (test[i])();
+    }
+
     exit();
 }
 

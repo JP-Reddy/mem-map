@@ -81,6 +81,8 @@ mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
       panic("remap");
     *pte = pa | perm | PTE_P;
 
+#ifdef COW
+
     // Increase the reference count for the phy page if a user-page is being
     // mapped
     if ((uint)a < KERNBASE)
@@ -100,6 +102,8 @@ mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
         page_ref[frame]++;
       }
     }
+
+#endif
 
     if(a == last)
       break;
@@ -309,6 +313,8 @@ deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
       if(pa == 0)
         panic("kfree");
 
+#ifdef COW
+
       int frame = pa / PGSIZE;
 
       if (frame >= sizeof(page_ref))
@@ -332,6 +338,9 @@ deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
         }
       }
       else
+
+#endif
+
       {
         char *v = P2V(pa);
         kfree(v);
@@ -394,7 +403,7 @@ handle_pgflt_cow(pte_t *pte)
 
     if((mem = kalloc()) == 0)
     {
-      return -1;
+      return -200;
     }
 
     memmove(mem, (char*)P2V(pa), PGSIZE);
@@ -434,6 +443,8 @@ handle_pgflt_cow(pte_t *pte)
 int
 handle_pgflt(pde_t *pgdir, char *uva)
 {
+  // cprintf("uva %x\n", uva);
+
   // Reset address to the start of the VA page
   uva = (char*)PGROUNDDOWN((uint)uva);
 
@@ -444,8 +455,16 @@ handle_pgflt(pde_t *pgdir, char *uva)
   {
     // TODO SRINAG: after all debugging remove panic
     panic("handle_pgflt: pgflt");
-    return -1;
+    return -100;
   }
+
+
+  // cprintf("uva %x, flags %d\n", uva, flags);
+
+  // if (flags & (PTE_W | PTE_P))
+  // {
+  //   return 0;
+  // }
 
 #ifdef COW
 
@@ -461,11 +480,12 @@ handle_pgflt(pde_t *pgdir, char *uva)
     return status;
   }
 
+
 #endif
 
   // Trigger lazy allocation handler if...
 
-  return -1;
+  return -300;
 }
 
 #ifdef COW
