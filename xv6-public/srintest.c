@@ -2,6 +2,8 @@
 #include "stat.h"
 #include "user.h"
 
+#define PGSIZE          4096    // bytes mapped by a page
+
 char *str = "You can't change a character!";
 
 void test_task3()
@@ -38,8 +40,64 @@ void test_task4_1()
     }
 }
 
+void test_task4_2()
+{
+    int big_array[PGSIZE * 4];
+
+#ifdef COW
+    int v = 10;
+#else
+    int v = 20;
+#endif
+
+    for (int i = 0; i < sizeof(big_array) / sizeof(int); ++i)
+    {
+        big_array[i] = i;
+    }
+
+    int pid1 = fork();
+    int pid2 = fork();
+    int res;
+
+    if (pid1 != 0 && pid2 != 0)
+    {
+        res = 1;
+    }
+    else if (pid1 == 0 && pid2 == 0)
+    {
+        res = 4;
+    }
+    else if (pid1 == 0)
+    {
+        res = 2;
+    }
+    else
+    {
+        res = 3;
+    }
+
+    for (int i = 0; i < sizeof(big_array) / sizeof(int); ++i)
+    {
+        big_array[i] = v;
+    }
+
+    if (big_array[0] == 10)
+    {
+        printf(1, "P: %d, COW enabled\n", res);
+    }
+    else
+    {
+        printf(1, "P: %d, COW disabled\n", res);
+    }
+
+    if (res == 1 || res == 2)
+    {
+        wait();
+    }
+}
+
 int main() {
-    test_task4_1();
+    test_task4_2();
     exit();
 }
 
