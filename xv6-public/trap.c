@@ -77,6 +77,22 @@ trap(struct trapframe *tf)
             cpuid(), tf->cs, tf->eip);
     lapiceoi();
     break;
+  // case T_PGFLT: // T_PGFLT = 14
+  //   // if page fault addr is part of a mapping: // lazy allocation
+  //       // handle it
+  //   uint faulting_address;
+  //   asm volatile("movl %%cr2, %0" : "=r" (faulting_address));
+  //   int index = find_wmap_region(faulting_address);
+
+  //   int mem = kalloc();
+
+  //   walkpgdir(myproc()->pgdir, myproc()->_wmap_deets[index].addr, 1);
+  //   fileread
+  //   else:
+  //       panic("Segmentation Fault\n");
+  //       // TODO-JP Kill the process
+  //       break;
+
 
   //PAGEBREAK: 13
   default:

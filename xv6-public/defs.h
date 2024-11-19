@@ -120,7 +120,11 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
-
+int             is_valid_va_range_wmap(int addr, int length);
+int             add_wmap_region(int addr, int length, int flags);
+int             free_wunmap(int);
+int             va_to_pa(int);
+int             find_wmap_region(int);
 // swtch.S
 void            swtch(struct context**, struct context*);
 
@@ -172,6 +176,8 @@ void            uartputc(int);
 
 // vm.c
 void            seginit(void);
+pte_t *  walkpgdir(pde_t *, const void *, int);
+int      mappages(pde_t*, void*, uint, uint, int);
 void            kvmalloc(void);
 pde_t*          setupkvm(void);
 char*           uva2ka(pde_t*, char*);

@@ -6,6 +6,7 @@
 #include "memlayout.h"
 #include "mmu.h"
 #include "proc.h"
+#include "wmap.h"
 
 int
 sys_fork(void)
@@ -88,4 +89,130 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+// wmap() is a system call that can be used by a user process to ask the
+// operating system kernel to map either files or devices into the memory (i.e.,
+// address space) of that process. The mmap() system call can also be used to
+// allocate memory (an anonymous mapping). A key point here is that the mapped
+// pages are not actually brought into physical memory until they are
+// referenced; thus wmap() can be used to implement "lazy" loading of pages into
+// memory (demand paging).
+//
+int sys_wmap(void)
+{
+  // uint wmap(uint addr, int length, int flags, int fd);
+  // [DONE]In this project, you only implement the case with MAP_FIXED. Return error
+  // [DONE]MAP_SHARED should always be set. If it's not, return error.
+
+  // [DONE]MAP_FIXED. Return error if this flag is not set. 
+  
+  // Also, a valid addr will be a multiple of page size and within 0x60000000
+  // and 0x80000000
+
+
+  // PTE_P indicates whether the PTE is present Map file pages to process
+  // virtual memory. 
+
+  // The file memlayout.h declares the constants for xv6’s memory layout, and
+  // macros to convert virtual to physical addresses. 
+  
+  // Which virtual address? 
+  // Ans: We will be provided the virtual address addr.
+  
+  // Which offset in the file should be mapped? 
+  // Ans: The entire file should be mapped.
+
+  // How do we know if a user has accessed a page? We need to create a new data
+  // structure to track that
+
+  // kalloc returns physical pages but kernel va of the pa
+
+  // We have virtual and physical addresses, we can map them using mappages.
+  // mappages maps only one page. We need to map all the pages one by one.
+  
+
+  // mappages internally calls walkpagedir to get the PTE of the virtual
+  // address. It then modifies the PTE to hold the physical address and modify
+  // the flags accordingly
+
+  int length, flags, fd;
+  int _iaddr;
+  uint addr;
+  // int parent_bufsize, child_bufsize;
+
+  if (argint(0, &_iaddr) < 0 ||
+      argint(1, &length) < 0 ||
+      argint(2, &flags) < 0 ||
+      argint(3, &fd) < 0) {
+      return -1;  // Return error if unable to read arguments
+  }
+  addr = (uint)_iaddr;
+  // va = addr;
+
+  // Verify if flags are set 
+  //
+  if( (flags & MAP_FIXED) == 0 || (flags & MAP_SHARED) == 0){
+    return FAILED;
+  }
+
+  // Verify if we're trying map in valid regions
+  //
+  if(addr < 0x60000000 || addr >= 0x80000000){ // TODO-JP Make these constants macros
+    return FAILED;
+  }
+
+  // Verify if addr is a multiple of page size
+  //
+  if(addr % PGSIZE != 0){
+    return FAILED;
+  }
+
+
+  if(is_valid_va_range_wmap(addr, length) == FAILED){
+    return FAILED;
+  }
+
+  return add_wmap_region(addr, length, flags);
+
+  //   char *mem;
+
+  //   mem = kalloc();
+  //   memset(mem, 0, PGSIZE);
+  //   mappages(myproc()->pgdir, va, PGSIZE, V2P(mem), PTE_WMAP_FLAGS);
+  // }
+
+  // return 0;
+}
+
+
+int sys_wunmap(void)
+{
+  int _iaddr;
+  uint addr;
+
+  if (argint(0, &_iaddr) < 0){
+      return -1;  // Return error if unable to read arguments
+  }
+  addr = (uint) _iaddr;
+
+  return free_wunmap(addr);
+}
+
+int sys_va2pa(void)
+{
+  int _iaddr;
+  uint addr;
+
+  if (argint(0, &_iaddr) < 0){
+      return -1;  // Return error if unable to read arguments
+  }
+  addr = (uint) _iaddr;
+
+  return va_to_pa(addr);
+}
+
+int sys_wmapinfo(void)
+{
+  return -1;
 }
