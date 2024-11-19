@@ -19,7 +19,7 @@ void test_task4_1()
 {
     printf(1, "\n%s start\n", __func__);
 
-#ifdef COW
+#ifndef NO_COW
     int i = 10;
 #else
     int i = 20;
@@ -53,7 +53,7 @@ void test_task4_2()
     int big_array[array_size];
     // int big_array[PGSIZE * 1];
 
-#ifdef COW
+#ifndef NO_COW
     int v = 10;
 #else
     int v = 20;
@@ -115,7 +115,7 @@ void test_task4_3()
 {
     printf(1, "\n%s start\n", __func__);
 
-#ifdef COW
+#ifndef NO_COW
     int i = 10;
 #else
     int i = 20;
@@ -168,7 +168,7 @@ void test_task4_4()
     int array1[array_size];
     int array2[array_size];
 
-#ifdef COW
+#ifndef NO_COW
     int v = 10;
 #else
     int v = 20;

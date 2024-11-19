@@ -72,7 +72,7 @@ mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
       panic("remap");
     *pte = pa | perm | PTE_P;
 
-#ifdef COW
+#ifndef NO_COW
 
     // TODO SRINAG: panic if a is not U page
 
@@ -296,7 +296,7 @@ deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
       if(pa == 0)
         panic("kfree");
 
-#ifdef COW
+#ifndef NO_COW
 
       // Only COW user space
       if(a < KERNBASE)
@@ -371,7 +371,7 @@ int handle_pgflt_wmap(pte_t *pte, int mapping_index)
   return 0;
 }
 
-#ifdef COW
+#ifndef NO_COW
 
 int
 handle_pgflt_cow(pte_t *pte)
@@ -448,7 +448,7 @@ handle_pgflt(pde_t *pgdir, char *uva)
     return -1;
   }
 
-#ifdef COW
+#ifndef NO_COW
 
   uint flags = PTE_FLAGS(*pte);
 
@@ -461,7 +461,6 @@ handle_pgflt(pde_t *pgdir, char *uva)
     lcr3(V2P(pgdir));
     return status;
   }
-
 
 #endif
 
@@ -481,7 +480,7 @@ handle_pgflt(pde_t *pgdir, char *uva)
   return -3;
 }
 
-#ifdef COW
+#ifndef NO_COW
 
 // Given a parent process's page table, create a copy
 // of it for a child.

@@ -193,7 +193,7 @@ kalloc(void)
 
   char *va = (char*)r;
 
-#ifdef COW
+#ifndef NO_COW
 
   // Init the ref count to zero on page allocation
   kpage_ref_reset(V2P(va));
