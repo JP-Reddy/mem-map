@@ -212,7 +212,7 @@ int sys_va2pa(void)
   return va_to_pa(addr);
 }
 
-int sys_wmapinfo(void)
+int sys_getwmapinfo(void)
 {
   return -1;
 }
