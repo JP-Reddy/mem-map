@@ -10,9 +10,6 @@
 extern char data[];  // defined by kernel.ld
 pde_t *kpgdir;  // for use in scheduler()
 
-// TODO SRINAG: what's the correct size?
-char page_ref[(KERNBASE / PGSIZE) * 2 + 1];
-
 // Set up CPU's kernel segment descriptors.
 // Run once on entry on each CPU.
 void
@@ -30,12 +27,6 @@ seginit(void)
   c->gdt[SEG_UCODE] = SEG(STA_X|STA_R, 0, 0xffffffff, DPL_USER);
   c->gdt[SEG_UDATA] = SEG(STA_W, 0, 0xffffffff, DPL_USER);
   lgdt(c->gdt, sizeof(c->gdt));
-
-  // TODO SRINAG: what's the correct place to init?
-  for (int i = 0; i < sizeof(page_ref); ++i)
-  {
-    page_ref[i] = 0;
-  }
 }
 
 // Return the address of the PTE in page table pgdir
@@ -83,23 +74,15 @@ mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
 
 #ifdef COW
 
+    // TODO SRINAG: panic if a is not U page
+
     // Increase the reference count for the phy page if a user-page is being
     // mapped
     if ((uint)a < KERNBASE)
     {
-      int frame = pa / PGSIZE;
-
-      if (frame >= sizeof(page_ref))
+      if (kpage_ref_inc(pa) < 0)
       {
-        panic("mappages: ref oob");
-      }
-      else if (page_ref[frame] < 0)
-      {
-        panic("mappage: ref corrupt");
-      }
-      else
-      {
-        page_ref[frame]++;
+        panic("mappages: bad page");
       }
     }
 
@@ -315,23 +298,17 @@ deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 
 #ifdef COW
 
-      int frame = pa / PGSIZE;
-
-      if (frame >= sizeof(page_ref))
+      // Only COW user space
+      if(a < KERNBASE)
       {
-        panic("deallocuvm: ref oob");
-      }
-
-      if (a < KERNBASE)
-      {
-        if (page_ref[frame] <= 0)
+        if(kpage_ref_dec(pa) < 0)
         {
-          panic("deallocuvm: ref multiple deref");
+          panic("deallocuvm: corrupt ref");
         }
 
         // If the page is no longer referred to in any page-table, deallocate
         // it
-        if(--page_ref[frame] == 0)
+        if(kpage_ref_cnt(pa) == 0)
         {
           char *v = P2V(pa);
           kfree(v);
@@ -391,25 +368,24 @@ handle_pgflt_cow(pte_t *pte)
 {
   uint pa = PTE_ADDR(*pte);
   uint flags = PTE_FLAGS(*pte);
-  int frame = pa / PGSIZE;
+  int ref = kpage_ref_cnt(pa);
 
   // If there are other processes referring to this phy page, create a copy of
   // the phy page for the current process and point the virtual address to this
   // copy instead
-  if (page_ref[frame] > 1)
+  if (ref > 1)
   {
     // Allocate new page and copy data from original phy page
     char *mem;
 
     if((mem = kalloc()) == 0)
     {
-      return -200;
+      return -2;
     }
 
     memmove(mem, (char*)P2V(pa), PGSIZE);
 
     uint new_pa = V2P(mem);
-    uint new_frame = new_pa / PGSIZE;
 
     // Restore the write flag for the page copy
     flags &= ~PTE_COWRO;
@@ -417,14 +393,20 @@ handle_pgflt_cow(pte_t *pte)
     *pte = new_pa | flags;
 
     // Increment the reference counter for the page copy
-    ++page_ref[new_frame];
+    if(kpage_ref_inc(new_pa) < 0)
+    {
+      panic("handle_pgflt_cow: bad new page");
+    }
 
     // Decrement the reference counter for the original page
-    --page_ref[frame];
+    if(kpage_ref_dec(pa) < 0)
+    {
+      panic("handle_pgflt_cow: bad old page");
+    }
   }
   // If there are no other processes referring to this phy page, simply restore
   // write access to it's sole virtual address mapping
-  else if (page_ref[frame] == 1)
+  else if (ref == 1)
   {
     flags &= ~PTE_COWRO;
     flags |= PTE_W;
@@ -432,7 +414,7 @@ handle_pgflt_cow(pte_t *pte)
   }
   else
   {
-    panic("handle_pgflt: refcount");
+    panic("handle_pgflt_cow: bad page");
   }
 
   return 0;
@@ -443,8 +425,6 @@ handle_pgflt_cow(pte_t *pte)
 int
 handle_pgflt(pde_t *pgdir, char *uva)
 {
-  // cprintf("uva %x\n", uva);
-
   // Reset address to the start of the VA page
   uva = (char*)PGROUNDDOWN((uint)uva);
 
@@ -455,16 +435,8 @@ handle_pgflt(pde_t *pgdir, char *uva)
   {
     // TODO SRINAG: after all debugging remove panic
     panic("handle_pgflt: pgflt");
-    return -100;
+    return -1;
   }
-
-
-  // cprintf("uva %x, flags %d\n", uva, flags);
-
-  // if (flags & (PTE_W | PTE_P))
-  // {
-  //   return 0;
-  // }
 
 #ifdef COW
 
@@ -485,7 +457,7 @@ handle_pgflt(pde_t *pgdir, char *uva)
 
   // Trigger lazy allocation handler if...
 
-  return -300;
+  return -3;
 }
 
 #ifdef COW

@@ -68,6 +68,9 @@ char*           kalloc(void);
 void            kfree(char*);
 void            kinit1(void*, void*);
 void            kinit2(void*, void*);
+int             kpage_ref_inc(uint);
+int             kpage_ref_dec(uint);
+int             kpage_ref_cnt(uint);
 
 // kbd.c
 void            kbdintr(void);

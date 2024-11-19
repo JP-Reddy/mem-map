@@ -21,6 +21,9 @@ struct {
   struct spinlock lock;
   int use_lock;
   struct run *freelist;
+
+  // TODO SRINAG: what's the correct size?
+  char page_ref[(KERNBASE / PGSIZE) * 2];
 } kmem;
 
 // Initialization happens in two phases.
@@ -51,6 +54,102 @@ freerange(void *vstart, void *vend)
   for(; p + PGSIZE <= (char*)vend; p += PGSIZE)
     kfree(p);
 }
+
+void
+kpage_ref_reset(uint pa)
+{
+  if(kmem.use_lock)
+    acquire(&kmem.lock);
+  
+  kmem.page_ref[pa / PGSIZE] = 0;
+
+  if(kmem.use_lock)
+    release(&kmem.lock);
+}
+
+int
+kpage_ref_inc(uint pa)
+{
+  if(kmem.use_lock)
+    acquire(&kmem.lock);
+
+  uint frame = pa / PGSIZE;
+  int status;
+
+  if (frame < sizeof(kmem.page_ref))
+  {
+    kmem.page_ref[frame]++;
+    status = 0;
+  }
+  else
+  {
+    status = -1;
+  }
+
+  if(kmem.use_lock)
+    release(&kmem.lock);
+
+  return status;
+}
+
+int
+kpage_ref_dec(uint pa)
+{
+  if(kmem.use_lock)
+    acquire(&kmem.lock);
+
+  uint frame = pa / PGSIZE;
+  int status;
+
+  if (frame < sizeof(kmem.page_ref))
+  {
+    char *ref = &kmem.page_ref[frame];
+
+    if (*ref > 0)
+    {
+      --*ref;
+      status = 0;
+    }
+    else
+    {
+      status = -2;
+    }
+  }
+  else
+  {
+    status = -1;
+  }
+
+  if(kmem.use_lock)
+    release(&kmem.lock);
+
+  return status;
+}
+
+int
+kpage_ref_cnt(uint pa)
+{
+  if(kmem.use_lock)
+    acquire(&kmem.lock);
+
+  uint frame = pa / PGSIZE;
+  int status;
+
+  if (frame < sizeof(kmem.page_ref))
+  {
+    status = kmem.page_ref[frame];
+  }
+  else
+  {
+    status = -1;
+  }
+
+  if(kmem.use_lock)
+    release(&kmem.lock);
+
+  return status;
+}
+
 //PAGEBREAK: 21
 // Free the page of physical memory pointed at by v,
 // which normally should have been returned by a
@@ -91,6 +190,16 @@ kalloc(void)
     kmem.freelist = r->next;
   if(kmem.use_lock)
     release(&kmem.lock);
-  return (char*)r;
+
+  char *va = (char*)r;
+
+#ifdef COW
+
+  // Init the ref count to zero on page allocation
+  kpage_ref_reset(V2P(va));
+
+#endif
+
+  return va;
 }
 
