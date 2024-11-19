@@ -361,6 +361,16 @@ clearpteu(pde_t *pgdir, char *uva)
   *pte &= ~PTE_U;
 }
 
+int handle_pgflt_wmap(pte_t *pte, int mapping_index)
+{
+  int mem = kalloc();
+
+  walkpgdir(myproc()->pgdir, myproc()->_wmap_deets[mapping_index].addr, 1);
+  // fileread
+
+  return 0;
+}
+
 #ifdef COW
 
 int
@@ -455,7 +465,18 @@ handle_pgflt(pde_t *pgdir, char *uva)
 
 #endif
 
-  // Trigger lazy allocation handler if...
+  // Trigger lazy allocation handler if... TODO JP
+  uint faulting_address = uva;
+  int index;
+  
+  if ((index = find_wmap_region(faulting_address)) >= 0)
+  {
+    int status = handle_pgflt_wmap(pte, index);
+
+    // The page-table has been changed, flush the TLB.
+    lcr3(V2P(pgdir));
+    return status;
+  }
 
   return -3;
 }
