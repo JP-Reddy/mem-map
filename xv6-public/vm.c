@@ -363,9 +363,9 @@ clearpteu(pde_t *pgdir, char *uva)
 
 int handle_pgflt_wmap(pte_t *pte, int mapping_index)
 {
-  int mem = kalloc();
+  // int mem = kalloc();
 
-  walkpgdir(myproc()->pgdir, myproc()->_wmap_deets[mapping_index].addr, 1);
+  // walkpgdir(myproc()->pgdir, myproc()->_wmap_deets[mapping_index].addr, 1);
   // fileread
 
   return 0;
@@ -466,7 +466,7 @@ handle_pgflt(pde_t *pgdir, char *uva)
 #endif
 
   // Trigger lazy allocation handler if... TODO JP
-  uint faulting_address = uva;
+  uint faulting_address = (uint)uva;
   int index;
   
   if ((index = find_wmap_region(faulting_address)) >= 0)
