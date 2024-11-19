@@ -32,6 +32,16 @@ struct context {
   uint eip;
 };
 
+struct wmapinfo_internal {
+  int addr;
+  int length;
+  int is_file_backed;
+  int is_shared;
+  int fd;
+  int is_valid;
+  int n_loaded_pages;
+};
+
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
 // Per-process state
@@ -49,6 +59,7 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+  struct wmapinfo_internal _wmap_deets[16]; // TODO-JP Replace with macro from wmap.h
 };
 
 // Process memory is laid out contiguously, low addresses first:

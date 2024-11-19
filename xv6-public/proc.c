@@ -6,6 +6,8 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
+// #include "vm.h"
+#include "wmap.h"
 
 struct {
   struct spinlock lock;
@@ -531,4 +533,136 @@ procdump(void)
     }
     cprintf("\n");
   }
+}
+
+// 0 if address range is not valid, 1 if valid
+//
+int is_valid_va_range_wmap(int addr, int length)
+{
+    for(int i = 0; i < MAX_WMMAP_INFO; i++){
+        if(!myproc()->_wmap_deets[i].is_valid){
+            continue;
+        }
+
+        if(addr < myproc()->_wmap_deets[i].addr && (addr + length <  myproc()->_wmap_deets[i].addr)){
+            // no conflict
+            continue;
+        }
+
+        if(addr > myproc()->_wmap_deets[i].addr + myproc()->_wmap_deets[i].length){
+            // no conflict
+            continue;
+        }
+
+        return FAILED;
+    }
+
+  // Verify if the virtual address addr is free. If not, return error
+  //
+  for(int i = 0; i < length/PGSIZE + 1; i++){
+
+    pte_t *pte = walkpgdir(myproc()->pgdir, (const void *) &addr, 0);
+    if(*pte & PTE_P){
+      // Virtual address not free. Return error
+      // TODO-JP: Free up any mapped pages
+      return FAILED;
+    }
+  }
+  
+  return SUCCESS;
+}
+
+// 0 on failure.
+// 1 on success
+//
+int  add_wmap_region(int addr, int length, int flags)
+{
+
+    // Invalid address range
+    //
+    if(!is_valid_va_range_wmap(addr, length)){
+        return FAILED;
+    }
+
+    // Find a free slot
+    //
+    for(int i = 0; i < MAX_WMMAP_INFO; i++){
+        if(myproc()->_wmap_deets != 0)
+            continue;
+
+        myproc()->_wmap_deets[i].addr = addr;
+        myproc()->_wmap_deets[i].length = length;
+        myproc()->_wmap_deets[i].is_valid = 1;
+        return addr;
+    }
+
+    // No free slots left
+    //
+    return FAILED;
+}
+
+// Find index of the wmap address in the _wmap_deets 
+//
+int find_wmap_region(int addr)
+{
+
+    for(int i = 0; i < MAX_WMMAP_INFO; i++){
+      if(!myproc()->_wmap_deets[i].is_valid)
+        continue;
+
+      if(myproc()->_wmap_deets[i].addr == addr)
+          return i;
+
+      if(myproc()->_wmap_deets[i].addr > addr && 
+      myproc()->_wmap_deets[i].addr + myproc()->_wmap_deets[i].length <= addr)
+          return i;
+    }
+
+    // Invalid address
+    //
+    return -1;
+}
+
+
+int free_wunmap(int addr)
+{
+  int index = find_wmap_region(addr);
+
+  if(index == -1)
+    return -1;
+
+  int length = myproc()->_wmap_deets[index].length;
+
+  // Remove page directory entry for this address range
+  //
+  for(int i = addr; i < addr + length; i+= PGSIZE){
+      pte_t *pte = walkpgdir(myproc()->pgdir, (const void *) &addr, 0);
+
+      if(pte == 0)
+          continue;
+      
+      int physical_address = PTE_ADDR(*pte);
+      kfree(P2V(physical_address));
+  }
+
+  // if(myproc()->_wmap_deets[index].is_file_backed == 1){
+  //     filewrite(fd, myproc()->_wmap_deets[index].addr, myproc()->_wmap_deets[index].length);
+  // }
+  // free(myproc()->_wmap_deets[index]);
+  myproc()->_wmap_deets[index].is_valid = 0;
+  return 0;
+}
+
+int va_to_pa(int addr)
+{
+  pte_t *pte;
+  
+  if((pte = walkpgdir(myproc()->pgdir, (const void *) &addr, 0)) == 0)
+  {
+    return -1;
+  }
+
+  uint pa = PTE_ADDR(*pte);
+
+  return pa;
 }
