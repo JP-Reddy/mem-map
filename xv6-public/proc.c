@@ -747,7 +747,12 @@ int va_to_pa(int addr)
   
   if((pte = walkpgdir(myproc()->pgdir, (const void *) addr, 0)) == 0)
   {
-    return -1;
+    return FAILED;
+  }
+
+  if(!(*pte & PTE_P)){
+    cprintf("[JPD] va2pa pte_p absent\n");
+    return FAILED;
   }
 
   uint pa = PTE_ADDR(*pte) + PTE_FLAGS(addr);

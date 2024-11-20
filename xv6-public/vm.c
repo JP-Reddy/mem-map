@@ -368,38 +368,49 @@ int handle_pgflt_wmap(uint faulting_addr, int mapping_index)
   if(mapping_index == -1){
     panic("Accessed memory not in wmap regions. Segmentation Fault\n");
     // myproc()->killed = 1;
-    return -1;
+    return FAILED;
   }
 
   // pte_t *pte = walkpgdir(myproc()->pgdir, (const void *)faulting_addr, 1);
   char *mem = kalloc();
 
-  uint page_number = (faulting_addr >> 12) & 0xFFFFF; 
-  // TODO-Srinag Is the page_number correct. Verify arguments
-  if(mappages(myproc()->pgdir, (void *)page_number, PGSIZE, V2P(mem), PTE_W|PTE_U) < 0){
-    return -1;
+  // uint page_number = (faulting_addr >> 12) & 0xFFFFF;
+
+  cprintf("[JPD] pgflt_handler mappages input - faulting addr = %d, page_number = %d, mem = %d\n ", faulting_addr,1, mem);
+  // TODO-Srinag Is the page_number correct. Verify arguments, PTE flags
+  if(mappages(myproc()->pgdir, (void *)faulting_addr, PGSIZE, V2P(mem), PTE_W|PTE_U) < 0){
+    cprintf("[JPD] pgflt_handler mappages failed - faulting addr = %d, page_number = %d, mem = %d\n ", faulting_addr, 1, mem);
+    return FAILED;
   }
 
-  struct wmapinfo_internal wmap_info = myproc()->_wmap_deets[mapping_index];
-  struct inode *ip = wmap_info.inode_ip;
+  struct wmapinfo_internal *wmap_info = &(myproc()->_wmap_deets[mapping_index]);
 
-  uint pgsize_offset = (faulting_addr - wmap_info.addr)/PGSIZE;
-  uint offset = faulting_addr + pgsize_offset*PGSIZE;
+  wmap_info->n_loaded_pages++;
+  cprintf("[JPD] Mapping index = %d, No of loaded pages: %d\n", mapping_index, wmap_info->n_loaded_pages);
+  if(wmap_info->is_file_backed == 1){
 
-  ilock(ip);
+    struct inode *ip = wmap_info->inode_ip;
 
-  // Read data
-  //
-  // TODO-Srinag Verify arguments
-  // int bytes_read = readi(ip, (char *)page_number, 0, PGSIZE);
-  int bytes_read = readi(ip, mem, offset, PGSIZE);
-  if(bytes_read < 0) {
-      // Handle error
-      iunlock(ip);
-      return -1;
+    // uint pgsize_offset = (faulting_addr - wmap_info.addr)/PGSIZE;
+    // uint offset = faulting_addr + pgsize_offset*PGSIZE;
+    uint offset = PTE_ADDR(faulting_addr);
+
+
+    ilock(ip);
+
+    // Read data
+    //
+    // TODO-Srinag Verify arguments
+    // int bytes_read = readi(ip, (char *)page_number, 0, PGSIZE);
+    int bytes_read = readi(ip, mem, offset, PGSIZE);
+    if(bytes_read < 0) {
+        // Handle error
+        iunlock(ip);
+        return FAILED;
+    }
+
   }
-
-  return 0;
+  return SUCCESS;
 }
 
 #ifndef NO_COW
@@ -471,6 +482,20 @@ handle_pgflt(pde_t *pgdir, char *uva)
 
   pte_t *pte = walkpgdir(pgdir, uva, 0);
 
+  // Trigger lazy allocation handler if... TODO JP
+  uint faulting_address = (uint)uva;
+  int index;
+  
+  if ((index = find_wmap_region(faulting_address)) >= 0)
+  {
+    int status = handle_pgflt_wmap(faulting_address, index);
+
+    // The page-table has been changed, flush the TLB.
+    lcr3(V2P(pgdir));
+    return status;
+  }
+
+
   // Page really isn't mapped
   if(pte == 0)
   {
@@ -494,19 +519,6 @@ handle_pgflt(pde_t *pgdir, char *uva)
   }
 
 #endif
-
-  // Trigger lazy allocation handler if... TODO JP
-  uint faulting_address = (uint)uva;
-  int index;
-  
-  if ((index = find_wmap_region(faulting_address)) >= 0)
-  {
-    int status = handle_pgflt_wmap(faulting_address, index);
-
-    // The page-table has been changed, flush the TLB.
-    lcr3(V2P(pgdir));
-    return status;
-  }
 
   return -3;
 }
