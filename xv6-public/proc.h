@@ -33,11 +33,11 @@ struct context {
 };
 
 struct wmapinfo_internal {
+  int is_valid;
   int addr;
   int length;
   int is_file_backed;
   int is_shared;
-  int is_valid;
   int n_loaded_pages;
   struct inode *inode_ip;
 };

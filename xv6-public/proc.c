@@ -587,22 +587,55 @@ int is_valid_va_range_wmap(int addr, int length)
   return SUCCESS;
 }
 
+
+int validate_wmap_args(int addr, int length, int flags, int fd){
+  
+  // Verify if flags are set 
+  //
+  if( (flags & MAP_FIXED) == 0 || (flags & MAP_SHARED) == 0){
+    return FAILED;
+  }
+
+  // Verify if we're trying map in valid regions
+  //
+  if(addr < 0x60000000 || addr >= 0x80000000){ // TODO-JP Make these constants macros
+    return FAILED;
+  }
+
+  // Verify if addr is a multiple of page size
+  //
+  if(addr % PGSIZE != 0){
+    return FAILED;
+  }
+
+  if(fd < 0){
+    return FAILED;
+  }
+  
+  if(is_valid_va_range_wmap(addr, length) == FAILED){
+    return FAILED;
+  }
+
+  return SUCCESS;
+}
+
 // 0 on failure.
 // 1 on success
 //
-int  add_wmap_region(int addr, int length, int flags, int fd)
+int add_wmap_region(int addr, int length, int flags, int fd)
 {
 
-    // Invalid address range
-    //
-    if(!is_valid_va_range_wmap(addr, length)){
-        return FAILED;
-    }
-
+  if(validate_wmap_args(addr, length, flags, fd) == FAILED){
+    return FAILED;
+  }
+  
     // Find a free slot
     //
     for(int i = 0; i < MAX_WMMAP_INFO; i++){
-      if(myproc()->_wmap_deets != 0)
+      
+      // Slot occupied
+      //
+      if(myproc()->_wmap_deets[i].is_valid != 0)
           continue;
 
       myproc()->_wmap_deets[i].addr = addr;
@@ -616,6 +649,7 @@ int  add_wmap_region(int addr, int length, int flags, int fd)
       if(flags & MAP_SHARED){
         myproc()->_wmap_deets[i].is_shared = 1;
       }
+
       myproc()->_wmap_deets[i].is_valid = 1;
       
       return addr;
@@ -626,11 +660,10 @@ int  add_wmap_region(int addr, int length, int flags, int fd)
     return FAILED;
 }
 
-// Find index of the wmap address in the _wmap_deets 
+// Find index of the wmap address in _wmap_deets 
 //
 int find_wmap_region(int addr)
 {
-
     for(int i = 0; i < MAX_WMMAP_INFO; i++){
       if(!myproc()->_wmap_deets[i].is_valid)
         continue;
