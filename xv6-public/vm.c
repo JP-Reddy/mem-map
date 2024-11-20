@@ -582,9 +582,14 @@ copyuvm(pde_t *pgdir, uint sz)
       {
         if((pte = walkpgdir(pgdir, (void *) va, 0)) == 0)
         {
-          // TODO SRINAG: we've maybe found a lazy allocated fragment
-          // TODO SRINAG: don't panic, allocate page maybe?
-          panic("copyuvm: wmap pte should exist");
+          // TODO SRINAG: we've maybe found a lazy allocated fragment, verify/optimize logic
+          if(handle_pgflt_wmap(va, j) < 0)
+          {
+            goto bad;
+          }
+
+          if((pte = walkpgdir(pgdir, (void *) va, 0)) == 0)
+            panic("copyuvm: wmap pte should exist");
         }
 
         if(!(*pte & PTE_P))
