@@ -661,7 +661,7 @@ int add_wmap_region(int addr, int length, int flags, int fd)
       if(myproc()->_wmap_deets[i].is_valid != 0)
           continue;
 
-      cprintf("[JPD] wmap Adding in Slot %d\n", i);
+      cprintf("[JPD] wmap Adding in Slot %d, addr = %d, length = %d\n", i, addr, length);
       myproc()->_wmap_deets[i].addr = addr;
       myproc()->_wmap_deets[i].length = length;
 

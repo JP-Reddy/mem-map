@@ -142,8 +142,6 @@ int sys_wmap(void)
   // uint addr;
   // int parent_bufsize, child_bufsize;
 
-  // cprintf("[JPD] sys_wmap' addr = %d, length = %d, flags = %d, fd = %d\n");
-  // if (argptr(0, (char **)&_uaddr, sizeof(uint)) < 0 ||
   if(argint(0, &_iaddr) < 0 ||
       // if(argint(1, &length) < 0 ||
       argint(1, &length) < 0 ||
@@ -216,6 +214,7 @@ int sys_getwmapinfo(void)
       map_info->length[j] = myproc()->_wmap_deets[i].length;
       map_info->n_loaded_pages[j] = myproc()->_wmap_deets[i].n_loaded_pages;
       total_mappings++;
+      j++;
     }
   }
   map_info->total_mmaps = total_mappings;
