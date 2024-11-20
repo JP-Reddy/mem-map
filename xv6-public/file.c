@@ -155,3 +155,14 @@ filewrite(struct file *f, char *addr, int n)
   panic("filewrite");
 }
 
+struct inode* filefetchinode(struct file *f)
+{
+  // if(fd < 0 || fd >= NOFILE || myproc()->ofile[fd] == 0)
+  //   return 0;
+  
+  // // return 0;
+
+  // // struct inode* i;
+
+  return f->ip;
+}

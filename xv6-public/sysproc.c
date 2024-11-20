@@ -173,7 +173,7 @@ int sys_wmap(void)
     return FAILED;
   }
 
-  return add_wmap_region(addr, length, flags);
+  return add_wmap_region(addr, length, flags, fd);
 
   //   char *mem;
 
@@ -214,5 +214,35 @@ int sys_va2pa(void)
 
 int sys_getwmapinfo(void)
 {
+
+  struct wmapinfo *map_info;
+
+  if(argptr(0, (char**)&map_info, sizeof(struct wmapinfo)) < 0)
+  {
+    return -1;
+  }
+
+  int total_mappings = 0;
+  int i, j;
+
+  for(i = 0, j = 0; i < MAX_WMMAP_INFO; i++){
+    if(myproc()->_wmap_deets[i].is_valid){
+
+      map_info->addr[j] = myproc()->_wmap_deets[i].addr;
+      map_info->length[j] = myproc()->_wmap_deets[i].length;
+      map_info->n_loaded_pages[j] = myproc()->_wmap_deets[i].n_loaded_pages;
+      total_mappings++;
+    }
+  }
+  map_info->total_mmaps = total_mappings;
+
+
+  while(j < MAX_WMMAP_INFO){
+    map_info->addr[j] = 0;
+    map_info->length[j] = 0;
+    map_info->n_loaded_pages[j] = 0;
+    j++;
+  }
+
   return -1;
 }

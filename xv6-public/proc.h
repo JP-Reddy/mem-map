@@ -37,9 +37,9 @@ struct wmapinfo_internal {
   int length;
   int is_file_backed;
   int is_shared;
-  int fd;
   int is_valid;
   int n_loaded_pages;
+  struct inode *inode_ip;
 };
 
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };

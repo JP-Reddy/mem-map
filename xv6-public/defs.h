@@ -33,6 +33,7 @@ void            fileinit(void);
 int             fileread(struct file*, char*, int n);
 int             filestat(struct file*, struct stat*);
 int             filewrite(struct file*, char*, int n);
+struct inode*   filefetchinode(struct file*);
 
 // fs.c
 void            readsb(int dev, struct superblock *sb);
@@ -124,7 +125,7 @@ int             wait(void);
 void            wakeup(void*);
 void            yield(void);
 int             is_valid_va_range_wmap(int addr, int length);
-int             add_wmap_region(int addr, int length, int flags);
+int             add_wmap_region(int addr, int length, int flags, int fd);
 int             free_wunmap(int);
 int             va_to_pa(int);
 int             find_wmap_region(int);
