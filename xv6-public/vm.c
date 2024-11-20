@@ -501,13 +501,31 @@ copyuvm(pde_t *pgdir, uint sz)
     pa = PTE_ADDR(*pte);
     flags = PTE_FLAGS(*pte);
 
-    // If the page is writeable, mark it read-only and install the COW trigger
+    // If the page is writeable, consider sharing the physical page with COW
     if (flags & PTE_W)
     {
-      flags |= PTE_COWRO;
-      flags &= ~PTE_W;
-      *pte = pa | flags;
+      int wmap_idx = find_wmap_region(i);
+
+      // If the page not mapped or is MAP_PRIVATE, we share the physical page
+      // until there is a write to it by either processes
+      if (wmap_idx < 0 || !myproc()->_wmap_deets[wmap_idx].is_shared)
+      {
+        // Install the COW trigger to trap and allocate separate physical pages
+        // on page write
+        flags |= PTE_COWRO;
+        flags &= ~PTE_W;
+        *pte = pa | flags;
+      }
+      // If the page is MAP_SHARED, we share the physical page regardless of
+      // COW
+      else
+      {
+        // Do nothing
+      }
     }
+
+    // If page is not writeable, the physical pages can be shared regardless of
+    // WMAP mappings
 
     // Map the virtual address to the same physical address as the source table
     if(mappages(d, (void*)i, PGSIZE, pa, flags) < 0) {

@@ -203,14 +203,46 @@ void test_task4_4()
     }
 }
 
+void test_task4_5()
+{
+    printf(1, "\n%s start\n", __func__);
+
+#ifndef NO_COW
+    int cow = 1;
+#else
+    int cow = 0;
+#endif
+
+    printf(1, "P%d COW enabled: %d\n", 1, cow);
+
+    int *addr = malloc(sizeof(char));
+    uint p1_pa = va2pa((uint)addr);
+
+    printf(1, "P%d Virtual address: %d\n", 1, addr);
+    printf(1, "P%d Phy address: %d\n", 1, p1_pa);
+
+    int p = fork() ? 1 : 2;
+
+    printf(1, "P%d Virtual address: %d\n", p, addr);
+    printf(1, "P%d Phy address: %d\n", p, va2pa((uint)addr));
+
+    if (p == 1)
+    {
+        wait();
+        free(addr);
+        printf(1, "%s end\n", __func__);
+    }
+}
+
 int main() {
     void (*test[])() = 
     {
-        test_task3,
-        test_task4_1,
-        // test_task4_2,
-        test_task4_3,
-        test_task4_4,
+        // test_task3,
+        // test_task4_1,
+        // // test_task4_2,
+        // test_task4_3,
+        // test_task4_4,
+        test_task4_5,
     };
 
     for (int i = 0; i < sizeof(test) / sizeof(test[0]); ++i)
