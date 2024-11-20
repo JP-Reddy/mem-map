@@ -375,7 +375,7 @@ int handle_pgflt_wmap(uint faulting_addr, int mapping_index)
 
   uint page_number = (faulting_addr >> 12) & 0xFFFFF; 
   // TODO-Srinag Is the page_number correct. Verify arguments
-  if(mappages(myproc()->pgdir, (char*)page_number, PGSIZE, V2P(mem), PTE_W|PTE_U) < 0){
+  if(mappages(myproc()->pgdir, (void *)page_number, PGSIZE, V2P(mem), PTE_W|PTE_U) < 0){
     return -1;
   }
 
