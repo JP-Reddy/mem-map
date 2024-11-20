@@ -6,6 +6,7 @@
 #include "mmu.h"
 #include "proc.h"
 #include "elf.h"
+#include "wmap.h"
 
 extern char data[];  // defined by kernel.ld
 pde_t *kpgdir;  // for use in scheduler()
@@ -534,6 +535,7 @@ copyuvm(pde_t *pgdir, uint sz)
     // If the page is writeable, consider sharing the physical page with COW
     if (flags & PTE_W)
     {
+      // TODO SRINAG: wmap lookup here should be redundant
       int wmap_idx = find_wmap_region(i);
 
       // If the page not mapped or is MAP_PRIVATE, we share the physical page
@@ -560,6 +562,38 @@ copyuvm(pde_t *pgdir, uint sz)
     // Map the virtual address to the same physical address as the source table
     if(mappages(d, (void*)i, PGSIZE, pa, flags) < 0) {
       goto bad;
+    }
+  }
+
+  // Copy page table mappings for wmap-ed regions
+  for(uint j = 0; j < MAX_WMMAP_INFO; j++)
+  {
+    struct wmapinfo_internal *wmap = &(myproc()->_wmap_deets[j]);
+
+    if(wmap->is_valid)
+    {
+      uint va_low = wmap->addr;
+      uint va_high = wmap->addr + wmap->length;
+      
+      // TODO SRINAG: does va_low need to be aligned to PGSIZE?
+      va_low = PGROUNDDOWN((uint)va_low);
+
+      for(uint va = va_low; va < va_high; va += PGSIZE)
+      {
+        if((pte = walkpgdir(pgdir, (void *) va, 0)) == 0)
+          panic("copyuvm: wmap pte should exist");
+        if(!(*pte & PTE_P))
+          panic("copyuvm: wmap page not present");
+
+        pa = PTE_ADDR(*pte);
+        flags = PTE_FLAGS(*pte);
+
+        // Map the virtual address to the same physical address as the source table
+        if(mappages(d, (void*)va, PGSIZE, pa, flags) < 0)
+        {
+          goto bad;
+        }
+      }
     }
   }
 
