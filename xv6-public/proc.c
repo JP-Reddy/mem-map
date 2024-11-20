@@ -647,30 +647,35 @@ int find_wmap_region(int addr)
 
 int free_wunmap(int addr)
 {
-  int index = find_wmap_region(addr);
+  int mapping_index = find_wmap_region(addr);
 
-  if(index == -1)
+  if(mapping_index == -1)
     return -1;
 
-  int length = myproc()->_wmap_deets[index].length;
+  struct wmapinfo_internal wmap_info = myproc()->_wmap_deets[mapping_index];
+
+  int length = wmap_info.length;
 
   // Remove page directory entry for this address range
   //
-  for(int i = addr; i < addr + length; i+= PGSIZE){
+  for(int addr = wmap_info.addr, i = 0; addr < addr + length; addr+= PGSIZE, i++){
       pte_t *pte = walkpgdir(myproc()->pgdir, (const void *) addr, 0);
 
-      if(pte == 0)
+      if(pte == 0 || !(*pte & PTE_P))
           continue;
-      
-      int physical_address = PTE_ADDR(*pte);
-      kfree(P2V(physical_address));
-  }
 
-  // if(myproc()->_wmap_deets[index].is_file_backed == 1){
-  //     filewrite(fd, myproc()->_wmap_deets[index].addr, myproc()->_wmap_deets[index].length);
-  // }
-  // free(myproc()->_wmap_deets[index]);
-  myproc()->_wmap_deets[index].is_valid = 0;
+      uint pa = PTE_ADDR(*pte);
+      if(wmap_info.is_file_backed == 1){
+          uint offset = addr + i*PGSIZE;
+          // int physical_address = PTE_ADDR(*pte) + PTE_FLAGS(addr);
+          // TODO-Srinag Verify if the address is right
+          writei(wmap_info.inode_ip, P2V(pte), offset, PGSIZE);
+      }
+      kfree(P2V(pa));
+
+  }
+ 
+  wmap_info.is_valid = 0;
   return 0;
 }
 
