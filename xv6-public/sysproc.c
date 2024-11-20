@@ -137,43 +137,26 @@ int sys_wmap(void)
   // the flags accordingly
 
   int length, flags, fd;
-  int _iaddr;
-  uint addr;
+  int _iaddr = 0;
+  // uint *_uaddr;
+  // uint addr;
   // int parent_bufsize, child_bufsize;
 
-  if (argint(0, &_iaddr) < 0 ||
+  // cprintf("[JPD] sys_wmap' addr = %d, length = %d, flags = %d, fd = %d\n");
+  // if (argptr(0, (char **)&_uaddr, sizeof(uint)) < 0 ||
+  if(argint(0, &_iaddr) < 0 ||
+      // if(argint(1, &length) < 0 ||
       argint(1, &length) < 0 ||
       argint(2, &flags) < 0 ||
       argint(3, &fd) < 0) {
+        cprintf("[JPD] wmap arg error");
       return -1;  // Return error if unable to read arguments
   }
-  addr = (uint)_iaddr;
+  // addr = (uint)_iaddr;
   // va = addr;
+  cprintf("[JPD] sys_wmap addr = %d, length = %d, flags = %d, fd = %d\n", _iaddr, length, flags, fd);
 
-  // Verify if flags are set 
-  //
-  if( (flags & MAP_FIXED) == 0 || (flags & MAP_SHARED) == 0){
-    return FAILED;
-  }
-
-  // Verify if we're trying map in valid regions
-  //
-  if(addr < 0x60000000 || addr >= 0x80000000){ // TODO-JP Make these constants macros
-    return FAILED;
-  }
-
-  // Verify if addr is a multiple of page size
-  //
-  if(addr % PGSIZE != 0){
-    return FAILED;
-  }
-
-
-  if(is_valid_va_range_wmap(addr, length) == FAILED){
-    return FAILED;
-  }
-
-  return add_wmap_region(addr, length, flags, fd);
+  return add_wmap_region(_iaddr, length, flags, fd);
 
   //   char *mem;
 
@@ -219,7 +202,8 @@ int sys_getwmapinfo(void)
 
   if(argptr(0, (char**)&map_info, sizeof(struct wmapinfo)) < 0)
   {
-    return -1;
+    cprintf("[JPD]: getwmapinfo arg issue");
+    return FAILED;
   }
 
   int total_mappings = 0;
@@ -244,5 +228,5 @@ int sys_getwmapinfo(void)
     j++;
   }
 
-  return -1;
+  return SUCCESS;
 }

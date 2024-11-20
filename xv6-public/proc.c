@@ -554,36 +554,53 @@ struct inode* get_inode(int fd)
 //
 int is_valid_va_range_wmap(int addr, int length)
 {
-    for(int i = 0; i < MAX_WMMAP_INFO; i++){
-        if(!myproc()->_wmap_deets[i].is_valid){
-            continue;
-        }
+  for(int i = 0; i < MAX_WMMAP_INFO; i++){
+    struct wmapinfo_internal i_wmap = myproc()->_wmap_deets[i];
+    if(!i_wmap.is_valid)
+        continue;
 
-        if(addr < myproc()->_wmap_deets[i].addr && (addr + length <  myproc()->_wmap_deets[i].addr)){
-            // no conflict
-            continue;
-        }
-
-        if(addr > myproc()->_wmap_deets[i].addr + myproc()->_wmap_deets[i].length){
-            // no conflict
-            continue;
-        }
-
-        return FAILED;
+    // TODO-Srinag Validate equalities
+    // The requested wmap range is a superset of an existing wmap
+    //
+    if(addr <= i_wmap.addr && addr + length >= i_wmap.addr + i_wmap.length){
+      cprintf("[JPD]wmap range check 1 failed");
+      return FAILED;
     }
+
+    // TODO-Srinag Validate equalities
+    // The requested wmap range has an overlap with the start of an existing
+    // wmap range
+    //
+    if(addr < i_wmap.addr && addr + length > i_wmap.addr){
+      cprintf("[JPD]wmap range check 2 failed");
+      return FAILED;
+    }
+
+    // TODO-Srinag Validate equalities
+    // The requested wmap range has its starting address overlap with existing
+    // wmap range 
+    //
+    if(addr > i_wmap.addr && addr < i_wmap.addr + i_wmap.length){
+      cprintf("[JPD]wmap range check 3 failed");
+      return FAILED;
+    }
+
+    // No conflicts between existing wmaps
+  }
 
   // Verify if the virtual address addr is free. If not, return error
   //
-  for(int i = 0; i < length/PGSIZE + 1; i++){
+  // Test 3 passes if 
+  // for(int i = 0; i < length/PGSIZE + 1; i++){
 
-    pte_t *pte = walkpgdir(myproc()->pgdir, (const void *) addr, 0);
-    if(*pte & PTE_P){
-      // Virtual address not free. Return error
-      // TODO-JP: Free up any mapped pages
-      return FAILED;
-    }
-  }
-  
+  //   pte_t *pte = walkpgdir(myproc()->pgdir, (const void *) addr + i*PGSIZE, 0);
+  //   if(*pte & PTE_P){
+  //     // Virtual address not free. Return error
+  //     // TODO-JP: Free up any mapped pages. hmm is this needed?
+  //     cprintf("[JPD]va pte check failed");
+  //     return FAILED;
+  //   }
+  // }
   return SUCCESS;
 }
 
@@ -593,26 +610,31 @@ int validate_wmap_args(int addr, int length, int flags, int fd){
   // Verify if flags are set 
   //
   if( (flags & MAP_FIXED) == 0 || (flags & MAP_SHARED) == 0){
+    cprintf("[JPD] Flags not correct %d\n", flags);
     return FAILED;
   }
 
   // Verify if we're trying map in valid regions
   //
-  if(addr < 0x60000000 || addr >= 0x80000000){ // TODO-JP Make these constants macros
+  if(addr < 0x60000000 || addr >= 0x80000000 || addr + length >= 0x80000000){ // TODO-JP Make these constants macros
+    cprintf("[JPD] Addr range not correct %d\n", addr);
     return FAILED;
   }
 
   // Verify if addr is a multiple of page size
   //
   if(addr % PGSIZE != 0){
+    cprintf("[JPD] Addr not multiple of page size %d\n", addr);
     return FAILED;
   }
 
-  if(fd < 0){
+  if((flags & MAP_ANONYMOUS) == 0 && fd < 0){
+    cprintf("[JPD] File backed but invalid fd\n");
     return FAILED;
   }
   
   if(is_valid_va_range_wmap(addr, length) == FAILED){
+    cprintf("[JPD] Invalid va range for wmap\n");
     return FAILED;
   }
 
@@ -626,6 +648,7 @@ int add_wmap_region(int addr, int length, int flags, int fd)
 {
 
   if(validate_wmap_args(addr, length, flags, fd) == FAILED){
+    cprintf("[JPD] wmap arg validation failed addr = %d, length = %d, flags = %d, fd = %d", addr, length, flags, fd);
     return FAILED;
   }
   
@@ -638,6 +661,7 @@ int add_wmap_region(int addr, int length, int flags, int fd)
       if(myproc()->_wmap_deets[i].is_valid != 0)
           continue;
 
+      cprintf("[JPD] wmap Adding in Slot %d\n", i);
       myproc()->_wmap_deets[i].addr = addr;
       myproc()->_wmap_deets[i].length = length;
 
@@ -657,6 +681,7 @@ int add_wmap_region(int addr, int length, int flags, int fd)
 
     // No free slots left
     //
+    cprintf("[JPD] wmap failed. No free slots. addr = %d, length = %d, flags = %d, fd = %d");
     return FAILED;
 }
 
