@@ -210,6 +210,10 @@ fork(void)
       np->ofile[i] = filedup(curproc->ofile[i]);
   np->cwd = idup(curproc->cwd);
 
+  for (int i = 0; i < MAX_WMMAP_INFO; i++) {
+    np->_wmap_deets[i] = curproc->_wmap_deets[i];
+  }
+
   safestrcpy(np->name, curproc->name, sizeof(curproc->name));
 
   pid = np->pid;
