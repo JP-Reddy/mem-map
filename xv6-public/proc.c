@@ -717,40 +717,46 @@ int free_wunmap(int addr)
   if(mapping_index == -1)
     return -1;
 
-  struct wmapinfo_internal *wmap_info = &(myproc()->_wmap_deets[mapping_index]);
 
   // int length = wmap_info.length;
 
-  struct file *f = wmap_info->mapped_file;
-  struct inode *ip = filefetchinode(f);
   
-  ilock(ip);
+  struct wmapinfo_internal *wmap_info = &(myproc()->_wmap_deets[mapping_index]);
+
+
+  cprintf("[JPD] Unmapping - Address = %d\n", wmap_info->addr);
+  cprintf("[JPD] Unmapping - Length = %d\n", wmap_info->length);
+  cprintf("[JPD] Unmapping - mapping_index = %d\n", mapping_index);
   // Remove page directory entry for this address range
   //
   for(int addr = wmap_info->addr; addr < wmap_info->addr + wmap_info->length; addr+= PGSIZE){
+    cprintf("[JPD] wunmap1 - PTE\n");
     pte_t *pte = walkpgdir(myproc()->pgdir, (const void *) addr, 0);
 
+    cprintf("[JPD] wunmap - PTE %x\n", pte);
     if(pte == 0 || !(*pte & PTE_P))
         continue;
 
     uint pa = PTE_ADDR(*pte);
 
     if(wmap_info->is_file_backed == 1){
+        struct file *f = wmap_info->mapped_file;
+        struct inode *ip = filefetchinode(f);
         // int physical_address = PTE_ADDR(*pte) + PTE_FLAGS(addr);
         // TODO-Srinag Verify if the address is right
+        ilock(ip);
         begin_op();
         writei(ip, P2V(pa), addr - wmap_info->addr, PGSIZE);
         end_op();
-
+        iunlock(ip);
     }
 
     cprintf("[JPD]Trying to free PA and PTE\n");
   }
-  iunlock(ip);
  
   if(wmap_info->is_file_backed){
     // TODO-JP Uncomment after adding fd in proc.h
-    // fileclose(wmap_info->fd);
+    fileclose(wmap_info->mapped_file);
   }
 
   deallocuvm(myproc()->pgdir, wmap_info->addr + wmap_info->length, wmap_info->addr);

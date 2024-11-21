@@ -597,10 +597,12 @@ copyuvm(pde_t *pgdir, uint sz)
       
       for(uint va = va_low; va < va_high; va += PGSIZE)
       {
-        if((pte = walkpgdir(pgdir, (void *) va, 0)) == 0)
-          panic("copyuvm: wmap pte should exist");
-        if(!(*pte & PTE_P))
-          panic("copyuvm: wmap page not present");
+        if((pte = walkpgdir(pgdir, (void *) va, 0)) == 0){
+          continue;
+          // panic("copyuvm: wmap pte should exist");
+        }
+        // if(!(*pte & PTE_P))
+        //   panic("copyuvm: wmap page not present");
 
         pa = PTE_ADDR(*pte);
         flags = PTE_FLAGS(*pte);

@@ -85,7 +85,7 @@ trap(struct trapframe *tf)
       // Trigger the page-fault handler
       if((status = handle_pgflt(myproc()->pgdir, uva)) < 0)
       {
-        cprintf("Segmentation Fault\n");
+        cprintf("Segmentation Fault - %x\n ", uva);
         // cprintf("Segmentation Fault %d\n", status);
         myproc()->killed = 1;
       }
