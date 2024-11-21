@@ -376,25 +376,28 @@ int handle_pgflt_wmap(uint faulting_addr, int mapping_index)
 
   // uint page_number = (faulting_addr >> 12) & 0xFFFFF;
 
-  cprintf("[JPD] pgflt_handler mappages input - faulting addr = %d, page_number = %d, mem = %d\n ", faulting_addr,1, mem);
+  // cprintf("[JPD] pgflt_handler mappages input - faulting addr = %d, page_number = %d, mem = %d\n ", faulting_addr,1, mem);
   // TODO-Srinag Is the page_number correct. Verify arguments, PTE flags
   if(mappages(myproc()->pgdir, (void *)faulting_addr, PGSIZE, V2P(mem), PTE_W|PTE_U) < 0){
     cprintf("[JPD] pgflt_handler mappages failed - faulting addr = %d, page_number = %d, mem = %d\n ", faulting_addr, 1, mem);
     return FAILED;
   }
 
+  memset((void *)PTE_ADDR(faulting_addr), 0, PGSIZE);
   struct wmapinfo_internal *wmap_info = &(myproc()->_wmap_deets[mapping_index]);
 
   wmap_info->n_loaded_pages++;
-  cprintf("[JPD] Mapping index = %d, No of loaded pages: %d\n", mapping_index, wmap_info->n_loaded_pages);
+  // cprintf("[JPD] Mapping index = %d, No of loaded pages: %d\n", mapping_index, wmap_info->n_loaded_pages);
   if(wmap_info->is_file_backed == 1){
 
-    struct inode *ip = wmap_info->inode_ip;
+    // struct inode *ip = wmap_info->inode_ip;
 
+    // int fd = wmap_info->fd;
+    struct file *f = wmap_info->mapped_file;
     // uint pgsize_offset = (faulting_addr - wmap_info.addr)/PGSIZE;
     // uint offset = faulting_addr + pgsize_offset*PGSIZE;
-    uint offset = PTE_ADDR(faulting_addr);
-
+    uint offset = PTE_ADDR(faulting_addr) - wmap_info->addr;
+    struct inode *ip = filefetchinode(f);
 
     ilock(ip);
 
@@ -402,12 +405,17 @@ int handle_pgflt_wmap(uint faulting_addr, int mapping_index)
     //
     // TODO-Srinag Verify arguments
     // int bytes_read = readi(ip, (char *)page_number, 0, PGSIZE);
+
+    // int bytes_read = fileread(f, mem, PGSIZE);
+    cprintf("[JPD]readi params: ip = %d, mem = %d, offset = %d", ip,mem, offset);
     int bytes_read = readi(ip, mem, offset, PGSIZE);
     if(bytes_read < 0) {
+        cprintf("[JPD] Bytes read = %d", bytes_read);
         // Handle error
         iunlock(ip);
         return FAILED;
     }
+    iunlock(ip);
 
   }
   return SUCCESS;
@@ -594,6 +602,7 @@ copyuvm(pde_t *pgdir, uint sz)
       {
         if((pte = walkpgdir(pgdir, (void *) va, 0)) == 0)
         {
+          continue;
           // TODO SRINAG: we've maybe found a lazy allocated fragment, verify/optimize logic
           if(handle_pgflt_wmap(va, j) < 0)
           {

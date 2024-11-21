@@ -40,6 +40,8 @@ struct wmapinfo_internal {
   int is_shared;
   int n_loaded_pages;
   struct inode *inode_ip;
+  struct file* mapped_file;
+  int fd;
 };
 
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };

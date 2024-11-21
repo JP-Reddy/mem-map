@@ -616,7 +616,7 @@ int validate_wmap_args(int addr, int length, int flags, int fd){
 
   // Verify if we're trying map in valid regions
   //
-  if(addr < 0x60000000 || addr >= 0x80000000 || addr + length >= 0x80000000){ // TODO-JP Make these constants macros
+  if(addr < 0x60000000 || addr >= 0x80000000 || addr + length > 0x80000000){ // TODO-JP Make these constants macros
     cprintf("[JPD] Addr range not correct %d\n", addr);
     return FAILED;
   }
@@ -628,7 +628,7 @@ int validate_wmap_args(int addr, int length, int flags, int fd){
     return FAILED;
   }
 
-  if((flags & MAP_ANONYMOUS) == 0 && fd < 0){
+  if((flags & MAP_ANONYMOUS) == 0 && (fd < 0 || fd >= NOFILE)){
     cprintf("[JPD] File backed but invalid fd\n");
     return FAILED;
   }
@@ -667,7 +667,10 @@ int add_wmap_region(int addr, int length, int flags, int fd)
 
       if((flags & MAP_ANONYMOUS) == 0){
         myproc()->_wmap_deets[i].is_file_backed = 1;
+
+        struct file *f = filedup(myproc()->ofile[fd]);
         myproc()->_wmap_deets[i].inode_ip = get_inode(fd);
+        myproc()->_wmap_deets[i].mapped_file = f;
       }
 
       if(flags & MAP_SHARED){
@@ -714,30 +717,50 @@ int free_wunmap(int addr)
   if(mapping_index == -1)
     return -1;
 
-  struct wmapinfo_internal wmap_info = myproc()->_wmap_deets[mapping_index];
+  struct wmapinfo_internal *wmap_info = &(myproc()->_wmap_deets[mapping_index]);
 
-  int length = wmap_info.length;
+  // int length = wmap_info.length;
 
+  struct file *f = wmap_info->mapped_file;
+  struct inode *ip = filefetchinode(f);
+  
+  ilock(ip);
   // Remove page directory entry for this address range
   //
-  for(int addr = wmap_info.addr, i = 0; addr < addr + length; addr+= PGSIZE, i++){
-      pte_t *pte = walkpgdir(myproc()->pgdir, (const void *) addr, 0);
+  for(int addr = wmap_info->addr; addr < wmap_info->addr + wmap_info->length; addr+= PGSIZE){
+    pte_t *pte = walkpgdir(myproc()->pgdir, (const void *) addr, 0);
 
-      if(pte == 0 || !(*pte & PTE_P))
-          continue;
+    if(pte == 0 || !(*pte & PTE_P))
+        continue;
 
-      uint pa = PTE_ADDR(*pte);
-      if(wmap_info.is_file_backed == 1){
-          uint offset = addr + i*PGSIZE;
-          // int physical_address = PTE_ADDR(*pte) + PTE_FLAGS(addr);
-          // TODO-Srinag Verify if the address is right
-          writei(wmap_info.inode_ip, P2V(pte), offset, PGSIZE);
-      }
-      kfree(P2V(pa));
+    uint pa = PTE_ADDR(*pte);
 
+    if(wmap_info->is_file_backed == 1){
+        // int physical_address = PTE_ADDR(*pte) + PTE_FLAGS(addr);
+        // TODO-Srinag Verify if the address is right
+        begin_op();
+        writei(ip, P2V(pa), addr - wmap_info->addr, PGSIZE);
+        end_op();
+
+    }
+
+    cprintf("[JPD]Trying to free PA and PTE\n");
+    kfree(P2V(pa));
+    *pte = 0;
+
+
+      // TODO-JP TODO-Srinag
+      // Free PTE entries 
   }
+  iunlock(ip);
  
-  wmap_info.is_valid = 0;
+  if(wmap_info->is_file_backed){
+    // TODO-JP Uncomment after adding fd in proc.h
+    // fileclose(wmap_info->fd);
+  }
+  wmap_info->is_valid = 0;
+
+  lcr3(V2P(myproc()->pgdir));
   return 0;
 }
 
@@ -751,7 +774,7 @@ int va_to_pa(int addr)
   }
 
   if(!(*pte & PTE_P)){
-    cprintf("[JPD] va2pa pte_p absent\n");
+    // cprintf("[JPD] va2pa pte_p absent\n");
     return FAILED;
   }
 
