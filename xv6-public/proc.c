@@ -240,6 +240,17 @@ exit(void)
   if(curproc == initproc)
     panic("init exiting");
 
+  for(uint j = 0; j < MAX_WMMAP_INFO; j++)
+  {
+    struct wmapinfo_internal *wmap = &(myproc()->_wmap_deets[j]);
+
+    if(!wmap->is_valid)
+    {
+      continue;
+    }
+    free_wunmap(wmap->addr);
+  }
+
   // Close all open files.
   for(fd = 0; fd < NOFILE; fd++){
     if(curproc->ofile[fd]){
