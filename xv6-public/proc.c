@@ -212,6 +212,11 @@ fork(void)
 
   for (int i = 0; i < MAX_WMMAP_INFO; i++) {
     np->_wmap_deets[i] = curproc->_wmap_deets[i];
+
+    if(curproc->_wmap_deets[i].is_valid && curproc->_wmap_deets[i].is_file_backed)
+    {
+      np->_wmap_deets[i].mapped_file = filedup(curproc->_wmap_deets[i].mapped_file);
+    }
   }
 
   safestrcpy(np->name, curproc->name, sizeof(curproc->name));
