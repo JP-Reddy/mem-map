@@ -616,7 +616,7 @@ int validate_wmap_args(int addr, int length, int flags, int fd){
 
   // Verify if we're trying map in valid regions
   //
-  if(addr < 0x60000000 || addr >= 0x80000000 || addr + length > 0x80000000){ // TODO-JP Make these constants macros
+  if(addr < MAP_MIN_ADDRESS || addr >= MAP_MAX_ADDRESS || addr + length > MAP_MAX_ADDRESS){ // TODO-JP Make these constants macros
     cprintf("[JPD] Addr range not correct %d\n", addr);
     return FAILED;
   }
