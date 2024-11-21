@@ -745,12 +745,6 @@ int free_wunmap(int addr)
     }
 
     cprintf("[JPD]Trying to free PA and PTE\n");
-    kfree(P2V(pa));
-    *pte = 0;
-
-
-      // TODO-JP TODO-Srinag
-      // Free PTE entries 
   }
   iunlock(ip);
  
@@ -758,6 +752,9 @@ int free_wunmap(int addr)
     // TODO-JP Uncomment after adding fd in proc.h
     // fileclose(wmap_info->fd);
   }
+
+  deallocuvm(myproc()->pgdir, wmap_info->addr + wmap_info->length, wmap_info->addr);
+
   wmap_info->is_valid = 0;
 
   lcr3(V2P(myproc()->pgdir));

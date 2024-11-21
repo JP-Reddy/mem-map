@@ -595,24 +595,10 @@ copyuvm(pde_t *pgdir, uint sz)
       uint va_low = wmap->addr;
       uint va_high = wmap->addr + wmap->length;
       
-      // TODO SRINAG: does va_low need to be aligned to PGSIZE?
-      va_low = PGROUNDDOWN((uint)va_low);
-
       for(uint va = va_low; va < va_high; va += PGSIZE)
       {
         if((pte = walkpgdir(pgdir, (void *) va, 0)) == 0)
-        {
-          continue;
-          // TODO SRINAG: we've maybe found a lazy allocated fragment, verify/optimize logic
-          if(handle_pgflt_wmap(va, j) < 0)
-          {
-            goto bad;
-          }
-
-          if((pte = walkpgdir(pgdir, (void *) va, 0)) == 0)
-            panic("copyuvm: wmap pte should exist");
-        }
-
+          panic("copyuvm: wmap pte should exist");
         if(!(*pte & PTE_P))
           panic("copyuvm: wmap page not present");
 
