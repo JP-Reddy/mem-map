@@ -75,8 +75,6 @@ mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
 
 #ifndef NO_COW
 
-    // TODO SRINAG: panic if a is not U page
-
     // Increase the reference count for the phy page if a user-page is being
     // mapped
     if ((uint)a < KERNBASE)
@@ -377,7 +375,6 @@ int handle_pgflt_wmap(uint faulting_addr, int mapping_index)
   // uint page_number = (faulting_addr >> 12) & 0xFFFFF;
 
   // cprintf("[JPD] pgflt_handler mappages input - faulting addr = %d, page_number = %d, mem = %d\n ", faulting_addr,1, mem);
-  // TODO-Srinag Is the page_number correct. Verify arguments, PTE flags
   if(mappages(myproc()->pgdir, (void *)faulting_addr, PGSIZE, V2P(mem), PTE_W|PTE_U) < 0){
     cprintf("[JPD] pgflt_handler mappages failed - faulting addr = %d, page_number = %d, mem = %d\n ", faulting_addr, 1, mem);
     return FAILED;
@@ -403,7 +400,6 @@ int handle_pgflt_wmap(uint faulting_addr, int mapping_index)
 
     // Read data
     //
-    // TODO-Srinag Verify arguments
     // int bytes_read = readi(ip, (char *)page_number, 0, PGSIZE);
 
     // int bytes_read = fileread(f, mem, PGSIZE);
@@ -488,8 +484,6 @@ handle_pgflt(pde_t *pgdir, char *uva)
   // Reset address to the start of the VA page
   uva = (char*)PGROUNDDOWN((uint)uva);
 
-  pte_t *pte = walkpgdir(pgdir, uva, 0);
-
   // Trigger lazy allocation handler if... TODO JP
   uint faulting_address = (uint)uva;
   int index;
@@ -503,12 +497,11 @@ handle_pgflt(pde_t *pgdir, char *uva)
     return status;
   }
 
+  pte_t *pte = walkpgdir(pgdir, uva, 0);
 
   // Page really isn't mapped
   if(pte == 0)
   {
-    // TODO SRINAG: after all debugging remove panic
-    panic("handle_pgflt: pgflt");
     return -1;
   }
 

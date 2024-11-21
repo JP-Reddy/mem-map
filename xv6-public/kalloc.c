@@ -22,7 +22,6 @@ struct {
   int use_lock;
   struct run *freelist;
 
-  // TODO SRINAG: what's the correct size?
   char page_ref[(KERNBASE / PGSIZE) * 2];
 } kmem;
 

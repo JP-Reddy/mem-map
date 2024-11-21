@@ -559,29 +559,14 @@ int is_valid_va_range_wmap(int addr, int length)
     if(!i_wmap.is_valid)
         continue;
 
-    // TODO-Srinag Validate equalities
-    // The requested wmap range is a superset of an existing wmap
-    //
-    if(addr <= i_wmap.addr && addr + length >= i_wmap.addr + i_wmap.length){
-      cprintf("[JPD]wmap range check 1 failed");
-      return FAILED;
-    }
+    int new_start = addr;
+    int ext_start = i_wmap.addr;
+    int new_end = addr + length - 1;
+    int ext_end = i_wmap.addr + i_wmap.length - 1;
 
-    // TODO-Srinag Validate equalities
-    // The requested wmap range has an overlap with the start of an existing
-    // wmap range
-    //
-    if(addr < i_wmap.addr && addr + length > i_wmap.addr){
-      cprintf("[JPD]wmap range check 2 failed");
-      return FAILED;
-    }
-
-    // TODO-Srinag Validate equalities
-    // The requested wmap range has its starting address overlap with existing
-    // wmap range 
-    //
-    if(addr > i_wmap.addr && addr < i_wmap.addr + i_wmap.length){
-      cprintf("[JPD]wmap range check 3 failed");
+    // Fail if the given address range is not outside the existing range
+    if(!(new_start > ext_end || new_end < ext_start))
+    {
       return FAILED;
     }
 
@@ -742,8 +727,7 @@ int free_wunmap(int addr)
     if(wmap_info->is_file_backed == 1){
         struct file *f = wmap_info->mapped_file;
         struct inode *ip = filefetchinode(f);
-        // int physical_address = PTE_ADDR(*pte) + PTE_FLAGS(addr);
-        // TODO-Srinag Verify if the address is right
+
         ilock(ip);
         begin_op();
         writei(ip, P2V(pa), addr - wmap_info->addr, PGSIZE);

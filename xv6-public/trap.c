@@ -91,7 +91,6 @@ trap(struct trapframe *tf)
       }
     }
     
-    // TODO SRINAG: should we call lapiceoi()?
     break;
 
   //PAGEBREAK: 13
