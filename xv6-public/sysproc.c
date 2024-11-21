@@ -147,12 +147,10 @@ int sys_wmap(void)
       argint(1, &length) < 0 ||
       argint(2, &flags) < 0 ||
       argint(3, &fd) < 0) {
-        cprintf("[JPD] wmap arg error");
       return -1;  // Return error if unable to read arguments
   }
   // addr = (uint)_iaddr;
   // va = addr;
-  cprintf("[JPD] sys_wmap addr = %d, length = %d, flags = %d, fd = %d\n", _iaddr, length, flags, fd);
 
   return add_wmap_region(_iaddr, length, flags, fd);
 
@@ -200,7 +198,6 @@ int sys_getwmapinfo(void)
 
   if(argptr(0, (char**)&map_info, sizeof(struct wmapinfo)) < 0)
   {
-    cprintf("[JPD]: getwmapinfo arg issue");
     return FAILED;
   }
 

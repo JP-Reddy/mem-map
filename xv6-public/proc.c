@@ -582,7 +582,6 @@ int is_valid_va_range_wmap(int addr, int length)
   //   if(*pte & PTE_P){
   //     // Virtual address not free. Return error
   //     // TODO-JP: Free up any mapped pages. hmm is this needed?
-  //     cprintf("[JPD]va pte check failed");
   //     return FAILED;
   //   }
   // }
@@ -595,31 +594,26 @@ int validate_wmap_args(int addr, int length, int flags, int fd){
   // Verify if flags are set 
   //
   if( (flags & MAP_FIXED) == 0 || (flags & MAP_SHARED) == 0){
-    cprintf("[JPD] Flags not correct %d\n", flags);
     return FAILED;
   }
 
   // Verify if we're trying map in valid regions
   //
-  if(addr < MAP_MIN_ADDRESS || addr >= MAP_MAX_ADDRESS || addr + length > MAP_MAX_ADDRESS){ // TODO-JP Make these constants macros
-    cprintf("[JPD] Addr range not correct %d\n", addr);
+  if(addr < MAP_MIN_ADDRESS || addr >= MAP_MAX_ADDRESS || addr + length > MAP_MAX_ADDRESS){ 
     return FAILED;
   }
 
   // Verify if addr is a multiple of page size
   //
   if(addr % PGSIZE != 0){
-    cprintf("[JPD] Addr not multiple of page size %d\n", addr);
     return FAILED;
   }
 
   if((flags & MAP_ANONYMOUS) == 0 && (fd < 0 || fd >= NOFILE)){
-    cprintf("[JPD] File backed but invalid fd\n");
     return FAILED;
   }
   
   if(is_valid_va_range_wmap(addr, length) == FAILED){
-    cprintf("[JPD] Invalid va range for wmap\n");
     return FAILED;
   }
 
@@ -633,7 +627,6 @@ int add_wmap_region(int addr, int length, int flags, int fd)
 {
 
   if(validate_wmap_args(addr, length, flags, fd) == FAILED){
-    cprintf("[JPD] wmap arg validation failed addr = %d, length = %d, flags = %d, fd = %d", addr, length, flags, fd);
     return FAILED;
   }
   
@@ -646,7 +639,6 @@ int add_wmap_region(int addr, int length, int flags, int fd)
       if(myproc()->_wmap_deets[i].is_valid != 0)
           continue;
 
-      cprintf("[JPD] wmap Adding in Slot %d, addr = %d, length = %d\n", i, addr, length);
       myproc()->_wmap_deets[i].addr = addr;
       myproc()->_wmap_deets[i].length = length;
 
@@ -669,7 +661,6 @@ int add_wmap_region(int addr, int length, int flags, int fd)
 
     // No free slots left
     //
-    cprintf("[JPD] wmap failed. No free slots. addr = %d, length = %d, flags = %d, fd = %d");
     return FAILED;
 }
 
@@ -709,16 +700,11 @@ int free_wunmap(int addr)
   struct wmapinfo_internal *wmap_info = &(myproc()->_wmap_deets[mapping_index]);
 
 
-  cprintf("[JPD] Unmapping - Address = %d\n", wmap_info->addr);
-  cprintf("[JPD] Unmapping - Length = %d\n", wmap_info->length);
-  cprintf("[JPD] Unmapping - mapping_index = %d\n", mapping_index);
   // Remove page directory entry for this address range
   //
   for(int addr = wmap_info->addr; addr < wmap_info->addr + wmap_info->length; addr+= PGSIZE){
-    cprintf("[JPD] wunmap1 - PTE\n");
     pte_t *pte = walkpgdir(myproc()->pgdir, (const void *) addr, 0);
 
-    cprintf("[JPD] wunmap - PTE %x\n", pte);
     if(pte == 0 || !(*pte & PTE_P))
         continue;
 
@@ -735,7 +721,6 @@ int free_wunmap(int addr)
         iunlock(ip);
     }
 
-    cprintf("[JPD]Trying to free PA and PTE\n");
   }
  
   if(wmap_info->is_file_backed){
@@ -761,7 +746,6 @@ int va_to_pa(int addr)
   }
 
   if(!(*pte & PTE_P)){
-    // cprintf("[JPD] va2pa pte_p absent\n");
     return FAILED;
   }
 

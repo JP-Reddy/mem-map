@@ -376,7 +376,6 @@ int handle_pgflt_wmap(uint faulting_addr, int mapping_index)
 
   // cprintf("[JPD] pgflt_handler mappages input - faulting addr = %d, page_number = %d, mem = %d\n ", faulting_addr,1, mem);
   if(mappages(myproc()->pgdir, (void *)faulting_addr, PGSIZE, V2P(mem), PTE_W|PTE_U) < 0){
-    cprintf("[JPD] pgflt_handler mappages failed - faulting addr = %d, page_number = %d, mem = %d\n ", faulting_addr, 1, mem);
     return FAILED;
   }
 
@@ -384,7 +383,6 @@ int handle_pgflt_wmap(uint faulting_addr, int mapping_index)
   struct wmapinfo_internal *wmap_info = &(myproc()->_wmap_deets[mapping_index]);
 
   wmap_info->n_loaded_pages++;
-  // cprintf("[JPD] Mapping index = %d, No of loaded pages: %d\n", mapping_index, wmap_info->n_loaded_pages);
   if(wmap_info->is_file_backed == 1){
 
     // struct inode *ip = wmap_info->inode_ip;
@@ -403,10 +401,8 @@ int handle_pgflt_wmap(uint faulting_addr, int mapping_index)
     // int bytes_read = readi(ip, (char *)page_number, 0, PGSIZE);
 
     // int bytes_read = fileread(f, mem, PGSIZE);
-    cprintf("[JPD]readi params: ip = %d, mem = %d, offset = %d", ip,mem, offset);
     int bytes_read = readi(ip, mem, offset, PGSIZE);
     if(bytes_read < 0) {
-        cprintf("[JPD] Bytes read = %d", bytes_read);
         // Handle error
         iunlock(ip);
         return FAILED;
