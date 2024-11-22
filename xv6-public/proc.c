@@ -589,18 +589,6 @@ int is_valid_va_range_wmap(int addr, int length)
     // No conflicts between existing wmaps
   }
 
-  // Verify if the virtual address addr is free. If not, return error
-  //
-  // Test 3 passes if 
-  // for(int i = 0; i < length/PGSIZE + 1; i++){
-
-  //   pte_t *pte = walkpgdir(myproc()->pgdir, (const void *) addr + i*PGSIZE, 0);
-  //   if(*pte & PTE_P){
-  //     // Virtual address not free. Return error
-  //     // TODO-JP: Free up any mapped pages. hmm is this needed?
-  //     return FAILED;
-  //   }
-  // }
   return SUCCESS;
 }
 
@@ -636,8 +624,8 @@ int validate_wmap_args(int addr, int length, int flags, int fd){
   return SUCCESS;
 }
 
-// 0 on failure.
-// 1 on success
+// -1 on failure.
+// 0 on success
 //
 int add_wmap_region(int addr, int length, int flags, int fd)
 {
@@ -662,7 +650,7 @@ int add_wmap_region(int addr, int length, int flags, int fd)
         myproc()->_wmap_deets[i].is_file_backed = 1;
 
         struct file *f = filedup(myproc()->ofile[fd]);
-        myproc()->_wmap_deets[i].inode_ip = get_inode(fd);
+        // myproc()->_wmap_deets[i].inode_ip = get_inode(fd);
         myproc()->_wmap_deets[i].mapped_file = f;
       }
 
@@ -709,12 +697,7 @@ int free_wunmap(int addr)
   if(mapping_index == -1)
     return -1;
 
-
-  // int length = wmap_info.length;
-
-  
   struct wmapinfo_internal *wmap_info = &(myproc()->_wmap_deets[mapping_index]);
-
 
   // Remove page directory entry for this address range
   //
@@ -740,7 +723,6 @@ int free_wunmap(int addr)
   }
  
   if(wmap_info->is_file_backed){
-    // TODO-JP Uncomment after adding fd in proc.h
     fileclose(wmap_info->mapped_file);
   }
 

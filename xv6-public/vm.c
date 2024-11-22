@@ -385,8 +385,6 @@ int handle_pgflt_wmap(uint faulting_addr, int mapping_index)
   wmap_info->n_loaded_pages++;
   if(wmap_info->is_file_backed == 1){
 
-    // struct inode *ip = wmap_info->inode_ip;
-
     // int fd = wmap_info->fd;
     struct file *f = wmap_info->mapped_file;
     // uint pgsize_offset = (faulting_addr - wmap_info.addr)/PGSIZE;

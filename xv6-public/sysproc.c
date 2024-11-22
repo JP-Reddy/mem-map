@@ -101,67 +101,19 @@ sys_uptime(void)
 //
 int sys_wmap(void)
 {
-  // uint wmap(uint addr, int length, int flags, int fd);
-  // [DONE]In this project, you only implement the case with MAP_FIXED. Return error
-  // [DONE]MAP_SHARED should always be set. If it's not, return error.
 
-  // [DONE]MAP_FIXED. Return error if this flag is not set. 
-  
-  // Also, a valid addr will be a multiple of page size and within 0x60000000
-  // and 0x80000000
+  int length, flags, fd, addr = 0;
 
-
-  // PTE_P indicates whether the PTE is present Map file pages to process
-  // virtual memory. 
-
-  // The file memlayout.h declares the constants for xv6’s memory layout, and
-  // macros to convert virtual to physical addresses. 
-  
-  // Which virtual address? 
-  // Ans: We will be provided the virtual address addr.
-  
-  // Which offset in the file should be mapped? 
-  // Ans: The entire file should be mapped.
-
-  // How do we know if a user has accessed a page? We need to create a new data
-  // structure to track that
-
-  // kalloc returns physical pages but kernel va of the pa
-
-  // We have virtual and physical addresses, we can map them using mappages.
-  // mappages maps only one page. We need to map all the pages one by one.
-  
-
-  // mappages internally calls walkpagedir to get the PTE of the virtual
-  // address. It then modifies the PTE to hold the physical address and modify
-  // the flags accordingly
-
-  int length, flags, fd;
-  int _iaddr = 0;
-  // uint *_uaddr;
-  // uint addr;
-  // int parent_bufsize, child_bufsize;
-
-  if(argint(0, &_iaddr) < 0 ||
+  if(argint(0, &addr) < 0 ||
       // if(argint(1, &length) < 0 ||
       argint(1, &length) < 0 ||
       argint(2, &flags) < 0 ||
       argint(3, &fd) < 0) {
       return -1;  // Return error if unable to read arguments
   }
-  // addr = (uint)_iaddr;
-  // va = addr;
 
-  return add_wmap_region(_iaddr, length, flags, fd);
+  return add_wmap_region(addr, length, flags, fd);
 
-  //   char *mem;
-
-  //   mem = kalloc();
-  //   memset(mem, 0, PGSIZE);
-  //   mappages(myproc()->pgdir, va, PGSIZE, V2P(mem), PTE_WMAP_FLAGS);
-  // }
-
-  // return 0;
 }
 
 
