@@ -371,6 +371,7 @@ int handle_pgflt_wmap(uint faulting_addr, int mapping_index)
   char *mem = kalloc();
 
   if(mappages(myproc()->pgdir, (void *)faulting_addr, PGSIZE, V2P(mem), PTE_W|PTE_U) < 0){
+    kfree(mem);
     return FAILED;
   }
 
@@ -389,12 +390,11 @@ int handle_pgflt_wmap(uint faulting_addr, int mapping_index)
     // Read data
     //
     int bytes_read = readi(ip, mem, offset, PGSIZE);
+    iunlock(ip);
     if(bytes_read < 0) {
         // Handle error
-        iunlock(ip);
         return FAILED;
     }
-    iunlock(ip);
 
   }
   return SUCCESS;
