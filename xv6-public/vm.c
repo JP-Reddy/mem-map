@@ -365,16 +365,11 @@ int handle_pgflt_wmap(uint faulting_addr, int mapping_index)
 
   if(mapping_index == -1){
     panic("Accessed memory not in wmap regions. Segmentation Fault\n");
-    // myproc()->killed = 1;
     return FAILED;
   }
 
-  // pte_t *pte = walkpgdir(myproc()->pgdir, (const void *)faulting_addr, 1);
   char *mem = kalloc();
 
-  // uint page_number = (faulting_addr >> 12) & 0xFFFFF;
-
-  // cprintf("[JPD] pgflt_handler mappages input - faulting addr = %d, page_number = %d, mem = %d\n ", faulting_addr,1, mem);
   if(mappages(myproc()->pgdir, (void *)faulting_addr, PGSIZE, V2P(mem), PTE_W|PTE_U) < 0){
     return FAILED;
   }
@@ -385,10 +380,7 @@ int handle_pgflt_wmap(uint faulting_addr, int mapping_index)
   wmap_info->n_loaded_pages++;
   if(wmap_info->is_file_backed == 1){
 
-    // int fd = wmap_info->fd;
     struct file *f = wmap_info->mapped_file;
-    // uint pgsize_offset = (faulting_addr - wmap_info.addr)/PGSIZE;
-    // uint offset = faulting_addr + pgsize_offset*PGSIZE;
     uint offset = PTE_ADDR(faulting_addr) - wmap_info->addr;
     struct inode *ip = filefetchinode(f);
 
@@ -396,9 +388,6 @@ int handle_pgflt_wmap(uint faulting_addr, int mapping_index)
 
     // Read data
     //
-    // int bytes_read = readi(ip, (char *)page_number, 0, PGSIZE);
-
-    // int bytes_read = fileread(f, mem, PGSIZE);
     int bytes_read = readi(ip, mem, offset, PGSIZE);
     if(bytes_read < 0) {
         // Handle error
