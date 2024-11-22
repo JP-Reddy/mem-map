@@ -119,13 +119,11 @@ int sys_wmap(void)
 
 int sys_wunmap(void)
 {
-  int _iaddr;
-  uint addr;
+  int addr;
 
-  if (argint(0, &_iaddr) < 0){
+  if (argint(0, &addr) < 0){
       return -1;  // Return error if unable to read arguments
   }
-  addr = (uint) _iaddr;
 
   return free_wunmap(addr);
 }

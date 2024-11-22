@@ -555,17 +555,6 @@ procdump(void)
   }
 }
 
-
-// Get inode using file descriptor
-//
-struct inode* get_inode(int fd)
-{
-  if(fd < 0 || fd >= NOFILE || myproc()->ofile[fd] == 0)
-    return 0;
-  
-  return filefetchinode(myproc()->ofile[fd]);
-}
-
 // 0 if address range is not valid, 1 if valid
 //
 int is_valid_va_range_wmap(int addr, int length)
@@ -650,7 +639,6 @@ int add_wmap_region(int addr, int length, int flags, int fd)
         myproc()->_wmap_deets[i].is_file_backed = 1;
 
         struct file *f = filedup(myproc()->ofile[fd]);
-        // myproc()->_wmap_deets[i].inode_ip = get_inode(fd);
         myproc()->_wmap_deets[i].mapped_file = f;
       }
 
@@ -692,10 +680,17 @@ int find_wmap_region(int addr)
 
 int free_wunmap(int addr)
 {
-  int mapping_index = find_wmap_region(addr);
+  int mapping_index = -1;
+
+  for(int i = 0; i < MAX_WMMAP_INFO; i++){
+    if(myproc()->_wmap_deets[i].is_valid == 1 && addr == myproc()->_wmap_deets[i].addr){
+      mapping_index = i;
+      break;
+    }
+  }
 
   if(mapping_index == -1)
-    return -1;
+    return FAILED;
 
   struct wmapinfo_internal *wmap_info = &(myproc()->_wmap_deets[mapping_index]);
 
@@ -722,14 +717,20 @@ int free_wunmap(int addr)
 
   }
  
+  // fileclose because we filedup during wmap
+  //
   if(wmap_info->is_file_backed){
     fileclose(wmap_info->mapped_file);
   }
 
+  // Clear page dir and pte entries of this wmap
+  //
   deallocuvm(myproc()->pgdir, wmap_info->addr + wmap_info->length, wmap_info->addr);
 
   wmap_info->is_valid = 0;
 
+  // Flush TLB
+  //
   lcr3(V2P(myproc()->pgdir));
   return 0;
 }
@@ -747,6 +748,8 @@ int va_to_pa(int addr)
     return FAILED;
   }
 
+  // PTE_FLAGS = Last 12 bits of addr = page offset
+  //
   uint pa = PTE_ADDR(*pte) + PTE_FLAGS(addr);
 
   return pa;
